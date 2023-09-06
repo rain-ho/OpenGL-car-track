@@ -1,0 +1,2364 @@
+<script src="http://is3l.isr.uc.pt/~pm/CGRA/JS/deecshader.js"></script>
+<script src="http://is3l.isr.uc.pt/~pm/CGRA/JS/deecapp.js"></script>
+<script src="http://is3l.isr.uc.pt/~pm/CGRA/JS/cgraobject.js"></script>
+<script src='https://git.io/glm-js.min.js'></script>
+<script src="http://is3l.isr.uc.pt/~pm/CGRA/JS/cgratexture.js"></script>
+
+
+<script id="my-vertex-shader" type="x-shader/x-vertex">
+    precision mediump float;
+    
+    attribute  vec3 in_Position;
+    attribute  vec3 in_Color;
+    
+    uniform mat4 MVP;
+    
+    varying  vec3 ex_Color;
+    
+    void main(void) {
+      
+        gl_Position = MVP * vec4(in_Position.x, in_Position.y, in_Position.z, 1.0);
+    
+        ex_Color = in_Color;
+    }
+</script>
+
+<script id="my-fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+    
+    varying  vec3 ex_Color;
+    
+    void main(void) {
+      
+        gl_FragColor = vec4(ex_Color,1.0);
+    }
+</script>
+
+<script id="my-vertex-shaderC" type="x-shader/x-vertex">
+    precision mediump float;
+    
+    attribute  vec3 in_Position;
+    attribute  vec3 in_Color;
+    uniform mat4 MVP;
+    uniform vec3 un_Color;
+    varying  vec3 ex_Color;
+    
+    void main(void) {
+      
+        gl_Position = MVP * vec4(in_Position.x, in_Position.y, in_Position.z, 1.0);
+    
+        ex_Color = un_Color;
+    }
+</script>
+
+<script id="my-vertex-shaderT" type="x-shader/x-vertex">
+    precision mediump float;
+    
+    attribute  vec3 in_Position;
+    attribute  vec3 in_Color;
+    attribute vec2 in_texcoords;
+    uniform mat4 MVP;
+    
+    varying  vec3 ex_Color;
+    varying  vec2 vTextureCoord;
+    
+    void main() {
+      
+        gl_Position = MVP * vec4(in_Position.x, in_Position.y, in_Position.z, 1.0);
+        vTextureCoord = in_texcoords;
+        ex_Color = in_Color;
+    }
+</script>
+
+<script id="my-fragment-shaderT" type="x-shader/x-fragment">
+    precision mediump float;
+    varying  vec2 vTextureCoord;
+    varying  vec3 ex_Color;
+    
+    uniform sampler2D uSampler;
+    
+    void main() {
+         gl_FragColor = texture2D(uSampler, vTextureCoord);
+    }
+</script>
+<!-- -----------------------------------------------------------------------
+----                        Shader - Directional Ligth                
+---------------------------------------------------------------------------->
+<script id="my-vertex-shaderL" type="x-shader/x-vertex">
+  precision mediump float;
+    
+    attribute  vec3 in_Position;
+    attribute  vec3 in_Color;
+    attribute  vec3 VertexNormal;
+  
+    uniform mat4 MVP;
+    uniform mat4 M; //modelMat
+    uniform mat3 NormalMatrix;
+  
+    varying  vec3 ex_Color;
+    varying  vec3 Normal;
+    varying  vec4 Position;
+  
+  void main(void) {
+    
+      gl_Position = MVP * vec4(in_Position.x, in_Position.y, in_Position.z, 1.0);
+      Normal = normalize(NormalMatrix * VertexNormal);
+      Position = M * vec4(in_Position.x, in_Position.y, in_Position.z, 1.0);
+      ex_Color = in_Color;
+
+  }
+</script>
+
+<script id="my-fragment-shaderL" type="x-shader/x-fragment">
+  precision mediump float;
+  
+    varying  vec3 ex_Color;
+    varying  vec3 Normal;
+    varying  vec4 Position;
+
+    uniform  vec3 CamPosition;
+    uniform  vec3 LightPosition;
+    uniform  vec3 LightColor;
+    uniform  vec3 Ambient;
+    uniform  float Shininess;
+    uniform  float Strength;
+
+      void main(void) {
+          vec3 LightDirection = normalize(LightPosition);
+          vec3 EyeDirection = CamPosition - Position.xyz;
+          vec3 HalfVector = normalize(LightDirection + EyeDirection);
+          //float Diffuse = max(0.0, dot(Normal,LightDirection));
+          float Diffuse = dot(Normal,LightDirection);
+          float Specular = max(0.0, dot(Normal,HalfVector));
+          if(Diffuse <= 0.0)
+              Specular = 0.0;
+          else
+              Specular = pow(Specular,Shininess);
+          vec3 ScatteredLight = Ambient + LightColor + Diffuse;
+          vec3 ReflectedLight = LightColor * Specular * Strength;
+          vec3 RGB = min(ex_Color.rgb * ScatteredLight + ReflectedLight, vec3(1.0));
+          gl_FragColor = vec4(Normal, 1.0);
+      }
+</script>
+
+
+<!-- -----------------------------------------------------------------------
+----                        Shader - Texture + Directional Ligth                
+---------------------------------------------------------------------------->
+<script id="my-vertex-shaderTL" type="x-shader/x-vertex">
+  precision mediump float;
+  
+    attribute  vec3 in_Position;
+    attribute  vec3 in_Color;
+    attribute vec2 in_texcoords;
+    attribute  vec3 VertexNormal;
+
+    uniform mat4 MVP;
+    uniform mat3 NormalMatrix;
+    uniform mat4 M; //modelMat
+
+    varying  vec2 vTextureCoord;
+    varying  vec3 Normal;
+    varying  vec4 Position;
+  
+  void main() {
+    
+      gl_Position = MVP * vec4(in_Position.x, in_Position.y, in_Position.z, 1.0);
+      vTextureCoord = in_texcoords;
+      Position = M * vec4(in_Position.x, in_Position.y, in_Position.z, 1.0);
+      Normal = normalize(NormalMatrix * VertexNormal);
+  }
+</script>
+
+<script id="my-fragment-shaderTL" type="x-shader/x-fragment">
+  precision mediump float;
+
+    varying  vec2 vTextureCoord;
+    varying  vec3 Normal;
+    varying  vec4 Position;
+
+    uniform sampler2D uSampler;
+    uniform  vec3 CamPosition;
+    uniform  vec3 LightPosition;
+    uniform  vec3 LightColor;
+    uniform  vec3 Ambient;
+    uniform  float Shininess;
+    uniform  float Strength;
+
+      void main() {
+          vec3 LightDirection = normalize(LightPosition);
+          vec3 EyeDirection = CamPosition - Position.xyz;
+          vec3 HalfVector = normalize(LightDirection + EyeDirection);
+          float Diffuse = max(0.0, dot(Normal,LightDirection));
+          float Specular = max(0.0, dot(Normal,HalfVector));
+          if(Diffuse == 0.0)
+              Specular = 0.0;
+          else
+              Specular = pow(Specular,Shininess);
+          vec3 ScatteredLight = Ambient + LightColor + Diffuse;
+          vec3 ReflectedLight = LightColor * Specular * Strength;
+          vec3 RGB = min(texture2D(uSampler, vTextureCoord).rgb * ScatteredLight + ReflectedLight, vec3(1.0));
+           //gl_FragColor = texture2D(uSampler, vTextureCoord);
+           gl_FragColor = vec4(RGB, 1.0);
+      }
+</script>
+
+<canvas id="myCanvas" width="1280" height="720" style="border:2px solid #000000;">
+    Error: Your browser does not support the HTML canvas tag.
+</canvas>
+
+
+<script id="myapp">
+
+//------------------------------------------------------------------------------//
+//                                  Basic Shapes                                //
+//------------------------------------------------------------------------------//
+//----------------------------------Triangle------------------------------------//
+class triangle extends CGRAobject{
+  constructor(glcontext){
+      super(glcontext); // initialize the parent class
+      
+      this.numvertices = 3;
+      var vertices =
+          [ -0.90, -0.90, 0 ,
+            0.90, -0.90, 0 ,
+            -0.90,  0.90, 0]; 
+      
+      var colors = [
+          1.0, 0.0, 0.0, 
+          0.0, 1.0, 0.0,
+          0.0, 0.0, 1.0];
+      
+      this.vertexbuffer=this.gl.createBuffer();
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexbuffer);    
+      // as JS stores everything in 64 bit format and GL expects 32bits...
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(vertices), this.gl.STATIC_DRAW);
+
+      this.colorbuffer = this.gl.createBuffer();
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorbuffer);    
+      // as JS stores everything in 64 bit format and GL expects 32bits...
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(colors), this.gl.STATIC_DRAW);
+  }
+}
+
+class triangleT extends triangle{
+    
+    constructor(glcontext){
+        super(glcontext);
+            var texcoords = [
+                0.0, 0.0,
+                1.0, 0.0,
+                0.0, 1.0 ];
+        
+            this.texcoordbuffer = this.gl.createBuffer();
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.texcoordbuffer);    
+            this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(texcoords), this.gl.STATIC_DRAW);
+    }
+        
+    settexture(cgratex){
+            this.textureid = cgratex.textureid;
+    }
+    
+    drawit(viewMat, projectionMat){
+        this.shaderprog.startUsing();
+        this.texcoordsLocation = this.gl.getAttribLocation(this.shaderprog.shaderProgram,
+                                                          "in_texcoords");
+       
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER,this.texcoordbuffer);
+        this.gl.vertexAttribPointer(this.texcoordsLocation, // Attribute location
+                           2, // number of elements per attribute
+                           this.gl.FLOAT,  // Type of elements
+                           false,  // 
+                           0, //2*Float32Array.BYTES_PER_ELEMENT, // size of a vertex in bytes 
+                           0); // Offset from the begining of a single vertex to this attribute
+        this.gl.enableVertexAttribArray(this.texcoordsLocation);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textureid);
+        this.texturelocation =  this.gl.getUniformLocation(this.shaderprog.shaderProgram, "uSampler");
+        this.gl.uniform1i(this.textureLocation, 0);
+        
+        // the parent method does the rest
+        super.drawit(viewMat,projectionMat);
+    }    
+}
+//----------------------------------Square--------------------------------------//
+class square extends CGRAobject{
+  constructor(glcontext, cgratex){
+      super(glcontext); // initialize the parent class
+      
+      this.numvertices = 6;
+      var vertices =
+          [ -1.0, -1.0,  0.0,
+            -1.0,  1.0,   0.0,
+             1.0,  1.0,   0.0,
+             1.0,   1.0,  0.0,
+             1.0,   -1.0,   0.0,
+             -1.0,   -1.0,  0.0,]; 
+      
+      var colors = [
+          1.0, 0.0, 0.0, 
+          0.0, 1.0, 0.0,
+          0.0, 0.0, 1.0,
+          0.0, 0.0, 0.0,
+          0.0, 0.0, 1.0,
+          0.0, 0.0, 0.0];
+
+      
+      this.vertexbuffer=this.gl.createBuffer();
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexbuffer);    
+      // as JS stores everything in 64 bit format and GL expects 32bits...
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(vertices), this.gl.STATIC_DRAW);
+
+      this.colorbuffer = this.gl.createBuffer();
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorbuffer);    
+      // as JS stores everything in 64 bit format and GL expects 32bits...
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(colors), this.gl.STATIC_DRAW);    
+  }
+}
+class squareT extends square{
+    constructor(glcontext){
+        super(glcontext);
+            var texcoords = [
+                0.0, 0.0,
+                0.0, 1.0,
+                1.0, 1.0,
+                1.0, 1.0,
+                1.0, 0.0,
+                0.0, 0.0 ];
+        
+            this.texcoordbuffer = this.gl.createBuffer();
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.texcoordbuffer);    
+            this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(texcoords), this.gl.STATIC_DRAW);
+    }
+        
+    settexture(cgratex){
+            this.textureid = cgratex.textureid;
+    }
+    
+    drawit(viewMat, projectionMat){
+        this.shaderprog.startUsing();
+        this.texcoordsLocation = this.gl.getAttribLocation(this.shaderprog.shaderProgram,
+                                                          "in_texcoords");
+       
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER,this.texcoordbuffer);
+        this.gl.vertexAttribPointer(this.texcoordsLocation, // Attribute location
+                           2, // number of elements per attribute
+                           this.gl.FLOAT,  // Type of elements
+                           false,  // 
+                           0, //2*Float32Array.BYTES_PER_ELEMENT, // size of a vertex in bytes 
+                           0); // Offset from the begining of a single vertex to this attribute
+        this.gl.enableVertexAttribArray(this.texcoordsLocation);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textureid);
+        this.texturelocation =  this.gl.getUniformLocation(this.shaderprog.shaderProgram, "uSampler");
+        this.gl.uniform1i(this.textureLocation, 0);
+        
+        // the parent method does the rest
+        super.drawit(viewMat,projectionMat);
+    }    
+}
+//------------------------------------Cube---------------- ---------------------//
+class cube extends CGRAobject{
+    constructor(glcontext,c1,c2,c3,c4,c5,c6){
+        console.log(c1)
+        super(glcontext); // initialize the parent class
+        //Colors
+        if(c1==null){
+            c1=[0.3, 0.1, 0.0]; //brown
+        }
+        if(c2==null){
+            c2=[0.3, 0.1, 0.0]; //brown
+        }
+        if(c3==null){
+            c3=[0.4, 1.0, 0.1];//green
+        }
+        if(c4==null){
+            c4=[0.3, 0.1, 0.0]; //brown 
+        }
+        if(c5==null){
+            c5=[0.3, 0.1, 0.0]; //brown
+        }
+        if(c6==null){
+            c6=[0.3, 0.1, 0.0]; //brown 
+        } 
+      //clr1,2,3,4,5 and 6  - 1 color per face
+        var clr1=[c1[0], c1[1], c1[2],
+              c1[0], c1[1], c1[2],
+              c1[0], c1[1], c1[2]]; 
+
+        var clr2=[c2[0], c2[1], c2[2],
+              c2[0], c2[1], c2[2],
+              c2[0], c2[1], c2[2]]; 
+
+        var clr3=[c3[0], c3[1], c3[2],
+              c3[0], c3[1], c3[2],
+              c3[0], c3[1], c3[2]]; //green
+
+        var clr4=[c4[0], c4[1], c4[2],
+              c4[0], c4[1], c4[2],
+              c4[0], c4[1], c4[2]]; //green
+
+        var clr5=[c5[0], c5[1], c5[2],
+              c5[0], c5[1], c5[2],
+              c5[0], c5[1], c5[2]]; //green
+
+        var clr6=[c6[0], c6[1], c6[2],
+              c6[0], c6[1], c6[2],
+              c6[0], c6[1], c6[2]]; //green
+
+        this.numvertices = 36;
+        var vertices =
+            [ [-0.5, -0.5, 0.5], // front l bottom - 0
+              [-0.5, 0.5, 0.5],  // front l top - 1
+              [0.5, 0.5, 0.5],   // front r top - 2 
+              [0.5, -0.5, 0.5],  // front r bottom - 3
+              [-0.5, -0.5, -0.5],// back l bottom - 4
+              [-0.5, 0.5, -0.5], // back l top - 5
+              [0.5, 0.5, -0.5],  // back r top - 6
+              [0.5, -0.5, -0.5]];// back r bottom - 7
+        
+        var normals_vec =
+            [ [0.0, 0.0, 1.0], // front - 0
+              [0.0, 0.0, -1.0], // back  - 1
+              [0.0, 1.0, 0.0], //top - 2
+              [0.0, -1.0, 0.0], //bottom -3
+              [1.0, 0.0, 0.0], // rigth - 5 
+              [-1.0, 0.0, 0.0] // left - 5
+            ]; 
+
+
+        var colors = []; 
+
+        const indices = [
+            0, 1, 3,  1, 3, 2,    // front
+            4, 5, 7,  5, 6, 7,    // back
+            1, 2, 5,  5, 2, 6,   // top
+            0, 3, 4,  3, 4, 7,   // bottom
+            2, 3, 7,  2, 6, 7,   // right
+            0, 1, 4,  1, 4, 5   // left
+          ];
+
+        const norm_indices = [
+            0, 0, 0,  0, 0, 0,    // front
+            1, 1, 1,  1, 1, 1,    // back
+            2, 2, 2,  2, 2, 2,   // top
+            3, 3, 3,  3, 3, 3,   // bottom
+            4, 4, 4,  4, 4, 4,   // right
+            5, 5, 5,  5, 5, 5   // left
+          ];
+        
+        var actualvertices = [];
+        var normals = [];
+        for (var j = 0; j < indices.length; ++j){
+            actualvertices = actualvertices.concat(vertices[indices[j]]);
+            normals = normals.concat(normals_vec[norm_indices[j]]);
+            // console.log(vertices[indices[j]]);
+        }
+        // for (var i=0; i<12; i++)
+        //     colors = colors.concat(colors);
+        for (var i=0; i<12; i++){
+            if(i<2)
+                colors = colors.concat(clr1);
+            if(i>=2 && i<4)
+                colors = colors.concat(clr2);
+            if(i>=4 && i<6)
+                colors = colors.concat(clr3);
+            if(i>=6 && i<8)
+                colors = colors.concat(clr4);
+            if(i>=8 && i<10)
+                colors = colors.concat(clr5);
+            if(i>=10 && i<12)
+                colors = colors.concat(clr6);
+        }
+        
+        this.vertexbuffer=this.gl.createBuffer();
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexbuffer);    
+        // as JS stores everything in 64 bit format and GL expects 32bits...
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(actualvertices), this.gl.STATIC_DRAW);
+
+        this.colorbuffer = this.gl.createBuffer();
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorbuffer);    
+        // as JS stores everything in 64 bit format and GL expects 32bits...
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(colors), this.gl.STATIC_DRAW);
+
+        this.normalbuffer=this.gl.createBuffer();
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normalbuffer);  
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(normals), this.gl.STATIC_DRAW);
+
+    }
+    setlights(Normal_Matrix,CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength){
+        //Load Normals to Shader
+        this.VertexNormallocation = this.gl.getAttribLocation(this.shaderprog.shaderProgram,
+        "VertexNormal");
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normalbuffer);
+        this.gl.vertexAttribPointer(this.VertexNormallocation, // Attribute location
+                           3, // number of elements per attribute
+                           this.gl.FLOAT,  // Type of elements
+                           this.gl.false,  // 
+                           3*Float32Array.BYTES_PER_ELEMENT, // size of a vertex in bytes 
+                           0); // Offset from the begining of a single vertex to this attribute
+        this.gl.enableVertexAttribArray(this.VertexNormallocation);
+        
+        //Load NormalMatrix
+        this.shaderprog.startUsing();
+        this.norm_matloc = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"NormalMatrix");
+        this.gl.uniformMatrix3fv(this.norm_matloc, false, Normal_Matrix.array);
+        this.model_matloc = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"M");
+        this.gl.uniformMatrix4fv(this.model_matloc, false, this.modelMat.array);
+        //uniform  vec3 CamPosition
+        this.CamLoclocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"CamPosition");
+        this.gl.uniform3fv(this.CamLoclocation, CamPosition.array);
+        // //uniform  vec3 LightPosition;
+        this.LightPositionlocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"LightPosition");
+        this.gl.uniform3fv(this.LightPositionlocation, LightPosition);
+        // //uniform  vec3 LightColor;
+        this.LightColorlocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"LightColor");
+        this.gl.uniform3fv(this.LightColorlocation, LightColor);
+        // //uniform  vec3 Ambient;
+        this.Ambientlocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"Ambient");
+        this.gl.uniform3fv(this.Ambientlocation, Ambient);
+        // //uniform  float Shininess;
+        this.Shininesslocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"Shininess");
+        this.gl.uniform1f(this.Shininesslocation, Shininess);
+        // //uniform  float Strength;
+        this.Strengthlocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"Strength");
+        this.gl.uniform1f(this.Strengthlocation, Strength);
+  }
+}
+
+class cubeT extends cube{
+    constructor(glcontext){
+        super(glcontext);
+            var texcoords = [];
+
+            //Coordinates of the vertices in of the Cube in T shape Texture- [u,v]
+            var texture_xy =
+            [ [1/3, 0], // 0  
+              [2/3, 0], // 1
+              [1/3, 1/4], //2 
+              [2/3, 1/4], //3
+              [0, 1/4], //4 
+              [0, 2/4], //5 
+              [1/3, 2/4], //6 
+              [2/3, 2/4], //7
+              [1, 1/4], //8 
+              [1, 2/4], //9 
+              [1/3, 3/4], //10 
+              [2/3, 3/4], //11 
+              [1/3, 1], //12 
+              [2/3, 1]];//13
+
+            // const indices = [
+            // 0, 1, 3,  1, 3, 2,    // front
+            // 4, 5, 7,  5, 6, 7,    // back
+            // 1, 2, 5,  5, 2, 6,   // top
+            // 0, 3, 4,  3, 4, 7,   // bottom
+            // 2, 3, 7,  2, 6, 7,   // right
+            // 0, 1, 4,  1, 4, 5   // left
+            // ];
+
+            var idx = [
+            2, 0, 3,  0, 3, 1,    // front x
+            7, 11, 6,  11, 10, 6,    // back
+            11, 10, 13,  13, 10, 12,   // top
+            2, 3, 6,  3, 6, 7,   // bottom 
+            8, 3, 7,  8, 9, 7,   // right
+            2, 4, 6,  4, 6, 5   // left x
+            ];
+            var actualvertices = [];
+            for (var j = 0; j < idx.length; ++j){
+                texcoords=texcoords.concat(texture_xy[idx[j]]);
+            }
+            
+            this.texcoordbuffer = this.gl.createBuffer();
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.texcoordbuffer);    
+            this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(texcoords), this.gl.STATIC_DRAW);
+    }
+        
+    settexture(cgratex){
+            this.textureid = cgratex.textureid;
+    }
+    
+    drawit(viewMat, projectionMat){
+        this.shaderprog.startUsing();
+        this.texcoordsLocation = this.gl.getAttribLocation(this.shaderprog.shaderProgram,
+                                                          "in_texcoords");
+       
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER,this.texcoordbuffer);
+        this.gl.vertexAttribPointer(this.texcoordsLocation, // Attribute location
+                           2, // number of elements per attribute
+                           this.gl.FLOAT,  // Type of elements
+                           false,  // 
+                           0, //2*Float32Array.BYTES_PER_ELEMENT, // size of a vertex in bytes 
+                           0); // Offset from the begining of a single vertex to this attribute
+        this.gl.enableVertexAttribArray(this.texcoordsLocation);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textureid);
+        this.texturelocation =  this.gl.getUniformLocation(this.shaderprog.shaderProgram, "uSampler");
+        this.gl.uniform1i(this.textureLocation, 0);
+        
+        // the parent method does the rest
+        super.drawit(viewMat,projectionMat);
+    } 
+}
+
+
+//------------------------------------Cone--------------------------------------//
+class cone extends CGRAobject{
+  constructor(glcontext,subs){//Subs - number of subdivision/segments
+      super(glcontext); // initialize the parent class
+      
+      var vertices=[];
+      var colors=[];
+      var normals=[];
+      //Cone has 2 triangles per segment
+      //1 for the base and 1 gor the upper face
+      var n_triangles = subs*2;
+      this.numvertices = 3*n_triangles;
+      var increment = 360/subs;
+      // var radius = 1.0;
+      var radius = 0.6;
+      var height = 1.4;
+      var coneAngle = Math.atan(radius/height);
+      for (var i=0.0; i<(360); i+=increment){
+            //Angles of the Vertices of subsection
+            var ang1 = i*Math.PI/180;
+            var ang2 = (i+increment)*Math.PI/180;
+            
+            //Vertices
+            vertices.push(radius*Math.cos(ang1), radius*Math.sin(ang1), 0.0, //Triangle 1
+                               radius*Math.cos(ang2), radius*Math.sin(ang2), 0.0,   
+                               0.0, 0.0, height,
+                               radius*Math.cos(ang1), radius*Math.sin(ang1), 0.0, //Triangle 2
+                               radius*Math.cos(ang2), radius*Math.sin(ang2), 0.0,   
+                               0.0, 0.0, 0.0);
+            //Colors
+            colors.push(0.0, 0.3, 0.0, //Triangle 1
+                        0.0, 0.3, 0.0,   
+                        0.0, 0.3, 0.0,
+                        0.0, 0.3, 0.0, //Triangle 2
+                        0.0, 0.3, 0.0,   
+                        0.0, 0.3, 0.0);
+            //Normals
+            normals.push(Math.cos(coneAngle) * Math.cos(ang1), Math.cos(coneAngle) * Math.sin(ang1), Math.sin(coneAngle), //Triangle 1
+                         Math.cos(coneAngle) * Math.cos(ang2), Math.cos(coneAngle) * Math.sin(ang2), Math.sin(coneAngle),  
+                         Math.cos(coneAngle) * Math.cos(ang2), Math.cos(coneAngle) * Math.sin(ang2), Math.sin(coneAngle),
+                         0.0, 0.0, -1.0, //Triangle 2
+                         0.0, 0.0, -1.0,   
+                         0.0, 0.0, -1.0);                 
+        }
+
+      this.vertexbuffer=this.gl.createBuffer();
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexbuffer);    
+      // as JS stores everything in 64 bit format and GL expects 32bits...
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(vertices), this.gl.STATIC_DRAW);
+
+      this.colorbuffer = this.gl.createBuffer();
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorbuffer);    
+      // as JS stores everything in 64 bit format and GL expects 32bits...
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(colors), this.gl.STATIC_DRAW);
+
+      this.normalbuffer = this.gl.createBuffer();
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normalbuffer);    
+      // as JS stores everything in 64 bit format and GL expects 32bits...
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(normals), this.gl.STATIC_DRAW);
+  }
+  setlights(Normal_Matrix,CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength){
+        //Load Normals to Shader
+        this.VertexNormallocation = this.gl.getAttribLocation(this.shaderprog.shaderProgram,
+        "VertexNormal");
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normalbuffer);
+        this.gl.vertexAttribPointer(this.VertexNormallocation, // Attribute location
+                           3, // number of elements per attribute
+                           this.gl.FLOAT,  // Type of elements
+                           this.gl.false,  // 
+                           3*Float32Array.BYTES_PER_ELEMENT, // size of a vertex in bytes 
+                           0); // Offset from the begining of a single vertex to this attribute
+        this.gl.enableVertexAttribArray(this.VertexNormallocation);
+        
+        //Load NormalMatrix
+        this.shaderprog.startUsing();
+        this.norm_matloc = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"NormalMatrix");
+        this.gl.uniformMatrix3fv(this.norm_matloc, false, Normal_Matrix.array);
+        this.model_matloc = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"M");
+        this.gl.uniformMatrix4fv(this.model_matloc, false, this.modelMat.array);
+        //uniform  vec3 CamPosition
+        this.CamLoclocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"CamPosition");
+        this.gl.uniform3fv(this.CamLoclocation, CamPosition.array);
+        // //uniform  vec3 LightPosition;
+        this.LightPositionlocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"LightPosition");
+        this.gl.uniform3fv(this.LightPositionlocation, LightPosition);
+        // //uniform  vec3 LightColor;
+        this.LightColorlocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"LightColor");
+        this.gl.uniform3fv(this.LightColorlocation, LightColor);
+        // //uniform  vec3 Ambient;
+        this.Ambientlocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"Ambient");
+        this.gl.uniform3fv(this.Ambientlocation, Ambient);
+        // //uniform  float Shininess;
+        this.Shininesslocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"Shininess");
+        this.gl.uniform1f(this.Shininesslocation, Shininess);
+        // //uniform  float Strength;
+        this.Strengthlocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"Strength");
+        this.gl.uniform1f(this.Strengthlocation, Strength);
+  }
+}
+class coneT extends cone{
+    constructor(glcontext,subs){
+        super(glcontext,subs);
+            var texcoords = [];
+            //Load texture coordinates similarly to vertex coordinates
+            var increment = 360/subs;
+            for (var i=0.0; i<(360); i+=increment){
+                    //Angles of the Vertices of subsection
+                    var ang1 = i*Math.PI/180;
+                    var ang2 = (i+increment)*Math.PI/180;
+                    var radius = 0.5;
+                    //Vertices
+                    texcoords.push( 0.5+radius*Math.cos(ang1), 0.5+radius*Math.sin(ang1), //Side
+                                    0.5+radius*Math.cos(ang2), 0.5+radius*Math.sin(ang2),   
+                                    0.5, 0.5,
+                                    0.5+radius*Math.cos(ang1), 0.5+radius*Math.sin(ang1), //Base
+                                    0.5+radius*Math.cos(ang2), 0.5+radius*Math.sin(ang2), 
+                                    0.5, 0.5);
+                } 
+            this.texcoordbuffer = this.gl.createBuffer();
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.texcoordbuffer);    
+            this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(texcoords), this.gl.STATIC_DRAW);
+            }
+            
+            settexture(cgratex){
+                    this.textureid = cgratex.textureid;
+            }
+            
+            drawit(viewMat, projectionMat){
+              this.shaderprog.startUsing();
+              this.texcoordsLocation = this.gl.getAttribLocation(this.shaderprog.shaderProgram,
+                                                                "in_texcoords");
+            
+              this.gl.bindBuffer(this.gl.ARRAY_BUFFER,this.texcoordbuffer);
+              this.gl.vertexAttribPointer(this.texcoordsLocation, // Attribute location
+                                2, // number of elements per attribute
+                                this.gl.FLOAT,  // Type of elements
+                                false,  // 
+                                0, //2*Float32Array.BYTES_PER_ELEMENT, // size of a vertex in bytes 
+                                0); // Offset from the begining of a single vertex to this attribute
+              this.gl.enableVertexAttribArray(this.texcoordsLocation);
+              this.gl.bindTexture(this.gl.TEXTURE_2D, this.textureid);
+              this.texturelocation =  this.gl.getUniformLocation(this.shaderprog.shaderProgram, "uSampler");
+              this.gl.uniform1i(this.textureLocation, 0);
+              
+              // the parent method does the rest
+              super.drawit(viewMat,projectionMat);
+            } 
+}
+
+//------------------------------------Sphere--------------------------------------//
+class sphere extends CGRAobject{
+  constructor(glcontext,subsv,subsh,clr){//Subsv - number of vertical subdivision/segments; Subsh - number of horizontal subdivision/segments;
+      super(glcontext); // initialize the parent class
+      
+      if(clr==null){
+        clr=[1.0,0.0,0.0];
+      }
+      var vertices=[];
+      var colors=[];
+      var normals = []; //radius = 1.0 - normal vector have the same coordinates as the vertices
+
+      //Gerating a Sphere is lik
+      //1 for the base and 1 gor the upper face
+      var n_triangles = (2+(subsv-1)*2)*subsh;
+      this.numvertices = 3*n_triangles;
+      var incrementv = 180/subsv;
+      var incrementh = 360/subsh;
+      var radius = 1.0;
+      for (var i=0.0; i<(360); i+=incrementh){
+            //Angles of the Vertices of subsection
+            var angh1 = i*Math.PI/180;
+            var angh2 = (i+incrementh)*Math.PI/180;
+            for (var j=0.0;j<180;j+=incrementv){
+              var angv1=j*Math.PI/180;
+              var angv2=(j+incrementv)*Math.PI/180;
+              var ring_radius1=radius*Math.sin(angv1);
+              var ring_radius2=radius*Math.sin(angv2);
+              var heigth1=radius*Math.cos(angv1);
+              var heigth2=radius*Math.cos(angv2);
+              //Top of Sphere
+              if(j==0.0){
+                  //Vertices
+                  vertices.push(ring_radius1*Math.cos(angh1), heigth1, ring_radius1*Math.sin(angh1), //Triangle 1
+                                ring_radius2*Math.cos(angh1), heigth2, ring_radius2*Math.sin(angh1),   
+                                ring_radius2*Math.cos(angh2), heigth2, ring_radius2*Math.sin(angh2));
+                  //Colors
+                  colors.push(clr[0],clr[1],clr[2], //Triangle 1
+                              clr[0],clr[1],clr[2],   
+                              clr[0],clr[1],clr[2]);
+                  //normals
+                  normals.push(ring_radius1*Math.cos(angh1), heigth1, ring_radius1*Math.sin(angh1), //Triangle 1
+                                ring_radius2*Math.cos(angh1), heigth2, ring_radius2*Math.sin(angh1),   
+                                ring_radius2*Math.cos(angh2), heigth2, ring_radius2*Math.sin(angh2));                
+              }
+              //Bottom of Sphere
+              if(j==180-incrementv){
+                  //Vertices
+                  vertices.push(ring_radius2*Math.cos(angh1), heigth2, ring_radius2*Math.sin(angh1), //Triangle 1
+                                ring_radius1*Math.cos(angh1), heigth1, ring_radius1*Math.sin(angh1),   
+                                ring_radius1*Math.cos(angh2), heigth1, ring_radius1*Math.sin(angh2));
+                  //Colors
+                  colors.push(clr[0],clr[1],clr[2], //Triangle 1
+                              clr[0],clr[1],clr[2],   
+                              clr[0],clr[1],clr[2]);
+                  //normals  
+                  normals.push(ring_radius2*Math.cos(angh1), heigth2, ring_radius2*Math.sin(angh1), //Triangle 1
+                                ring_radius1*Math.cos(angh1), heigth1, ring_radius1*Math.sin(angh1),   
+                                ring_radius1*Math.cos(angh2), heigth1, ring_radius1*Math.sin(angh2));                   
+              }
+              //2 triangles per subsection
+              else{
+                  //Vertices
+                  vertices.push(ring_radius1*Math.cos(angh1), heigth1, ring_radius1*Math.sin(angh1), //Triangle 1
+                                ring_radius2*Math.cos(angh1), heigth2, ring_radius2*Math.sin(angh1),   
+                                ring_radius2*Math.cos(angh2), heigth2, ring_radius2*Math.sin(angh2),
+                                ring_radius2*Math.cos(angh2), heigth2, ring_radius2*Math.sin(angh2), //Triangle 2
+                                ring_radius1*Math.cos(angh1), heigth1, ring_radius1*Math.sin(angh1),   
+                                ring_radius1*Math.cos(angh2), heigth1, ring_radius1*Math.sin(angh2));
+                  //Colors
+                  colors.push(clr[0],clr[1],clr[2], //Triangle 1
+                              clr[0],clr[1],clr[2],   
+                              clr[0],clr[1],clr[2], 
+                              clr[0],clr[1],clr[2], //Triangle 2
+                              clr[0],clr[1],clr[2],   
+                              clr[0],clr[1],clr[2]);
+                  //normals
+                  normals.push(ring_radius1*Math.cos(angh1), heigth1, ring_radius1*Math.sin(angh1), //Triangle 1
+                               ring_radius2*Math.cos(angh1), heigth2, ring_radius2*Math.sin(angh1),   
+                               ring_radius2*Math.cos(angh2), heigth2, ring_radius2*Math.sin(angh2),
+                               ring_radius2*Math.cos(angh2), heigth2, ring_radius2*Math.sin(angh2), //Triangle 2
+                               ring_radius1*Math.cos(angh1), heigth1, ring_radius1*Math.sin(angh1),   
+                               ring_radius1*Math.cos(angh2), heigth1, ring_radius1*Math.sin(angh2));
+              }
+            }
+            
+        }
+
+      this.vertexbuffer=this.gl.createBuffer();
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexbuffer);    
+      // as JS stores everything in 64 bit format and GL expects 32bits...
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(vertices), this.gl.STATIC_DRAW);
+
+      this.colorbuffer = this.gl.createBuffer();
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorbuffer);    
+      // as JS stores everything in 64 bit format and GL expects 32bits...
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(colors), this.gl.STATIC_DRAW);
+      
+      this.normalbuffer = this.gl.createBuffer();
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normalbuffer);    
+      // as JS stores everything in 64 bit format and GL expects 32bits...
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(normals), this.gl.STATIC_DRAW);
+  }
+  setlights(Normal_Matrix,CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength){
+        //Load Normals to Shader
+        this.VertexNormallocation = this.gl.getAttribLocation(this.shaderprog.shaderProgram,
+        "VertexNormal");
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normalbuffer);
+        this.gl.vertexAttribPointer(this.VertexNormallocation, // Attribute location
+                           3, // number of elements per attribute
+                           this.gl.FLOAT,  // Type of elements
+                           this.gl.false,  // 
+                           3*Float32Array.BYTES_PER_ELEMENT, // size of a vertex in bytes 
+                           0); // Offset from the begining of a single vertex to this attribute
+        this.gl.enableVertexAttribArray(this.VertexNormallocation);
+        
+        //Load NormalMatrix
+        this.shaderprog.startUsing();
+        this.norm_matloc = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"NormalMatrix");
+        this.gl.uniformMatrix3fv(this.norm_matloc, false, Normal_Matrix.array);
+        this.model_matloc = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"M");
+        this.gl.uniformMatrix4fv(this.model_matloc, false, this.modelMat.array);
+        //uniform  vec3 CamPosition
+        this.CamLoclocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"CamPosition");
+        this.gl.uniform3fv(this.CamLoclocation, CamPosition.array);
+        // //uniform  vec3 LightPosition;
+        this.LightPositionlocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"LightPosition");
+        this.gl.uniform3fv(this.LightPositionlocation, LightPosition);
+        // //uniform  vec3 LightColor;
+        this.LightColorlocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"LightColor");
+        this.gl.uniform3fv(this.LightColorlocation, LightColor);
+        // //uniform  vec3 Ambient;
+        this.Ambientlocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"Ambient");
+        this.gl.uniform3fv(this.Ambientlocation, Ambient);
+        // //uniform  float Shininess;
+        this.Shininesslocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"Shininess");
+        this.gl.uniform1f(this.Shininesslocation, Shininess);
+        // //uniform  float Strength;
+        this.Strengthlocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"Strength");
+        this.gl.uniform1f(this.Strengthlocation, Strength);
+  }
+}
+
+class sphereT extends sphere{
+  constructor(glcontext,subsv,subsh){
+        super(glcontext,subsv,subsh); 
+            var texcoords = [];
+            //Load texture coordinates similarly to vertex coordinates
+            var n_triangles = (2+(subsv-1)*2)*subsh;
+            this.numvertices = 3*n_triangles;
+            var incrementv = 180/subsv;
+            var incrementh = 360/subsh;
+            for (var i=0.0; i<(360); i+=incrementh){
+                  //Angles of the Vertices of subsection
+                  var h1 = (360-i)/360;
+                  var h2 = (360-i-incrementh)/360;
+                  for (var j=0.0;j<180;j+=incrementv){
+                    var v1=(j)/180;
+                    var v2=(j+incrementv)/180;
+                    //Top of Sphere
+                    if(j==0.0){
+                      if(i==(0.0)){
+                        texcoords.push(0.5, v1, //Triangle 1
+                                       h1, v1,   
+                                       h2, v2); 
+                      }
+                      if(i==(360-incrementh)){
+                        texcoords.push(0.5, v1, //Triangle 1
+                                       h1, v2,   
+                                       h2, v1); 
+                      }
+                      if(i>0 && i<360-incrementh){
+                        texcoords.push(0.5, v1, //Triangle 1
+                                       h1, v2,   
+                                       h2, v2); 
+                      }
+                                          
+                    }
+                    //Bottom of Sphere
+                    if((j==180-incrementv)){
+                      if(i==(0.0)){
+                        texcoords.push(0.5, v2, //Triangle 1
+                                     h1, v2,   
+                                     h2, v1); 
+                      }
+                      if(i==(360-incrementh)){
+                        texcoords.push(0.5, v2, //Triangle 1
+                                     h1, v1,   
+                                     h2, v2); 
+                      }
+                      if(i>0 && i<360-incrementh){
+                        texcoords.push(0.5, v2, //Triangle 1
+                                     h1, v1,   
+                                     h2, v1); 
+                      }  
+                    }
+                    //2 triangles per subsection
+                    else{
+                        texcoords.push(h1, v1, //Triangle 1
+                                       h1, v2,    
+                                       h2, v2, 
+                                       h2, v2, //Triangle 2
+                                       h1, v1,   
+                                       h2, v1);
+                      
+                    }
+                  }
+                  
+              }
+
+            this.texcoordbuffer = this.gl.createBuffer();
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.texcoordbuffer);    
+            this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(texcoords), this.gl.STATIC_DRAW);
+    }
+    settexture(cgratex){
+            this.textureid = cgratex.textureid;
+    }
+    
+    drawit(viewMat, projectionMat,Normal_Matrix,CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength){
+        this.shaderprog.startUsing();
+        //-------------------------------Processing Texture---------------------------------
+        this.texcoordsLocation = this.gl.getAttribLocation(this.shaderprog.shaderProgram,
+                                                          "in_texcoords");
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER,this.texcoordbuffer);
+        this.gl.vertexAttribPointer(this.texcoordsLocation, // Attribute location
+                           2, // number of elements per attribute
+                           this.gl.FLOAT,  // Type of elements
+                           false,  // 
+                           0, //2*Float32Array.BYTES_PER_ELEMENT, // size of a vertex in bytes 
+                           0); // Offset from the begining of a single vertex to this attribute
+        this.gl.enableVertexAttribArray(this.texcoordsLocation);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textureid);
+
+        //Texture uniform
+        this.texturelocation =  this.gl.getUniformLocation(this.shaderprog.shaderProgram, "uSampler");
+        this.gl.uniform1i(this.textureLocation, 0);
+
+
+        // the parent method does the rest
+        super.drawit(viewMat,projectionMat);
+    }       
+}
+//------------------------------------Cylinder------------------------------------//
+class cyldr extends CGRAobject{
+  constructor(glcontext,subs,height,clr1,clr2){//Subs - number of subdivision/segments
+      super(glcontext); // initialize the parent class
+      //clr1 - color for top and bottom
+      //clr2 - color for lateral face
+      //Default Colors
+      if (clr1==null){
+        clr1=[0.2, 0.01, 0.0]; //Dark Brown
+      }
+      if (clr2==null){
+        clr2=[0.4, 0.2, 0.05]; //Lighter Brown
+      }
+      var vertices=[];
+      var colors=[];
+      var normals=[];
+      //Cone has 4  triangles per segment
+      //2 belonging to segments of top and botom cirlces 
+      //2 belonging to the segment of the curved face
+      var n_triangles = subs*4;
+      this.numvertices = 3*n_triangles;
+      var increment = 360/subs;
+      // var radius = 1.0;
+      var radius = 0.3;
+      if(height==null){
+        height=1.0;
+      }
+      for (var i=0.0; i<(360); i+=increment){
+            //Angles of the Vertices of subsection
+            var ang1 = i*Math.PI/180;
+            var ang2 = (i+increment)*Math.PI/180;
+            //Vertices
+            vertices.push(radius*Math.cos(ang1), radius*Math.sin(ang1), height/2, //Top
+                          radius*Math.cos(ang2), radius*Math.sin(ang2), height/2,   
+                          0.0, 0.0, height/2,
+                          radius*Math.cos(ang1), radius*Math.sin(ang1), -height/2, //Bottom
+                          radius*Math.cos(ang2), radius*Math.sin(ang2), -height/2,   
+                          0.0, 0.0, -height/2,
+                          radius*Math.cos(ang1), radius*Math.sin(ang1), -height/2, //Seg1
+                          radius*Math.cos(ang2), radius*Math.sin(ang2), -height/2,   
+                          radius*Math.cos(ang1), radius*Math.sin(ang1), height/2,
+                          radius*Math.cos(ang1), radius*Math.sin(ang1), height/2, //Seg2
+                          radius*Math.cos(ang2), radius*Math.sin(ang2), height/2,   
+                          radius*Math.cos(ang2), radius*Math.sin(ang2), -height/2);
+            //Colors
+            colors.push(clr1[0], clr1[1], clr1[2], //Top
+                        clr1[0], clr1[1], clr1[2],   
+                        clr1[0], clr1[1], clr1[2],
+                        clr1[0], clr1[1], clr1[2], //Bottom
+                        clr1[0], clr1[1], clr1[2],   
+                        clr1[0], clr1[1], clr1[2],
+                        clr2[0], clr2[1], clr2[2], //Seg1
+                        clr2[0], clr2[1], clr2[2],   
+                        clr2[0], clr2[1], clr2[2],
+                        clr2[0], clr2[1], clr2[2], //Seg2
+                        clr2[0], clr2[1], clr2[2],   
+                        clr2[0], clr2[1], clr2[2]);
+            //Normals
+            normals.push(0.0, 0.0, 1.0, //Top
+                          0.0, 0.0, 1.0,   
+                          0.0, 0.0, 1.0,
+                          0.0, 0.0, -1.0, //Bottom
+                          0.0, 0.0, -1.0,   
+                          0.0, 0.0, -1.0,
+                          radius*Math.cos(ang1), radius*Math.sin(ang1), 0, //Seg1
+                          radius*Math.cos(ang2), radius*Math.sin(ang2), 0,   
+                          radius*Math.cos(ang1), radius*Math.sin(ang1), 0,
+                          radius*Math.cos(ang1), radius*Math.sin(ang1), 0, //Seg2
+                          radius*Math.cos(ang2), radius*Math.sin(ang2), 0,   
+                          radius*Math.cos(ang2), radius*Math.sin(ang2), 0);
+        }
+
+      this.vertexbuffer=this.gl.createBuffer();
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexbuffer);    
+      // as JS stores everything in 64 bit format and GL expects 32bits...
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(vertices), this.gl.STATIC_DRAW);
+
+      this.colorbuffer = this.gl.createBuffer();
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorbuffer);    
+      // as JS stores everything in 64 bit format and GL expects 32bits...
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(colors), this.gl.STATIC_DRAW);
+
+      this.normalbuffer = this.gl.createBuffer();
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normalbuffer);    
+      // as JS stores everything in 64 bit format and GL expects 32bits...
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(normals), this.gl.STATIC_DRAW);
+  }
+  setlights(Normal_Matrix,CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength){
+        //Load Normals to Shader
+        this.VertexNormallocation = this.gl.getAttribLocation(this.shaderprog.shaderProgram,
+        "VertexNormal");
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normalbuffer);
+        this.gl.vertexAttribPointer(this.VertexNormallocation, // Attribute location
+                           3, // number of elements per attribute
+                           this.gl.FLOAT,  // Type of elements
+                           this.gl.false,  // 
+                           3*Float32Array.BYTES_PER_ELEMENT, // size of a vertex in bytes 
+                           0); // Offset from the begining of a single vertex to this attribute
+        this.gl.enableVertexAttribArray(this.VertexNormallocation);
+        
+        //Load NormalMatrix
+        this.shaderprog.startUsing();
+        this.norm_matloc = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"NormalMatrix");
+        this.gl.uniformMatrix3fv(this.norm_matloc, false, Normal_Matrix.array);
+        this.model_matloc = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"M");
+        this.gl.uniformMatrix4fv(this.model_matloc, false, this.modelMat.array);
+        //uniform  vec3 CamPosition
+        this.CamLoclocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"CamPosition");
+        this.gl.uniform3fv(this.CamLoclocation, CamPosition.array);
+        // //uniform  vec3 LightPosition;
+        this.LightPositionlocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"LightPosition");
+        this.gl.uniform3fv(this.LightPositionlocation, LightPosition);
+        // //uniform  vec3 LightColor;
+        this.LightColorlocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"LightColor");
+        this.gl.uniform3fv(this.LightColorlocation, LightColor);
+        // //uniform  vec3 Ambient;
+        this.Ambientlocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"Ambient");
+        this.gl.uniform3fv(this.Ambientlocation, Ambient);
+        // //uniform  float Shininess;
+        this.Shininesslocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"Shininess");
+        this.gl.uniform1f(this.Shininesslocation, Shininess);
+        // //uniform  float Strength;
+        this.Strengthlocation = this.gl.getUniformLocation(this.shaderprog.shaderProgram,"Strength");
+        this.gl.uniform1f(this.Strengthlocation, Strength);
+  }
+}
+
+class cyldrT extends cyldr{
+    constructor(glcontext,subs,height){
+        super(glcontext,subs,height);
+            var texcoords = [];
+            //Load texture coordinates similarly to vertex coordinates
+            var n_triangles = subs*4;
+            this.numvertices = 3*n_triangles;
+            var increment = 360/subs;
+            var ctrTop_u=0.25; var ctrTop_v=0.75;
+            var ctrBott_u=0.75; var ctrBott_v=0.75;
+            for (var i=0.0; i<(360); i+=increment){
+                    //Angles of the Vertices of subsection
+                    var ang1 = i*Math.PI/180;
+                    var ang2 = (i+increment)*Math.PI/180;
+                    var radius = 0.25;
+                    //Vertices
+                    texcoords.push(ctrTop_u+radius*Math.cos(ang1), ctrTop_v+radius*Math.sin(ang1), //Top
+                                   ctrTop_u+radius*Math.cos(ang2), ctrTop_v+radius*Math.sin(ang2),   
+                                   ctrTop_u, ctrTop_v,
+                                   ctrBott_u+radius*Math.cos(ang1), ctrBott_v+radius*Math.sin(ang1), //Bottom
+                                   ctrBott_u+radius*Math.cos(ang2), ctrBott_v+radius*Math.sin(ang2),   
+                                   ctrBott_u, ctrBott_v,
+                                   i/360, 0.5, //Seg1
+                                   (i+increment)/360, 0.5,  
+                                   i/360, 0.0,
+                                   i/360, 0.0,//Seg2
+                                   (i+increment)/360, 0.0,  
+                                   (i+increment)/360, 0.5);
+                }
+  
+            this.texcoordbuffer = this.gl.createBuffer();
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.texcoordbuffer);    
+            this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(texcoords), this.gl.STATIC_DRAW);
+    }
+        
+    settexture(cgratex){
+            this.textureid = cgratex.textureid;
+    }
+    
+    drawit(viewMat, projectionMat){
+        this.shaderprog.startUsing();
+        this.texcoordsLocation = this.gl.getAttribLocation(this.shaderprog.shaderProgram,
+                                                          "in_texcoords");
+       
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER,this.texcoordbuffer);
+        this.gl.vertexAttribPointer(this.texcoordsLocation, // Attribute location
+                           2, // number of elements per attribute
+                           this.gl.FLOAT,  // Type of elements
+                           false,  // 
+                           0, //2*Float32Array.BYTES_PER_ELEMENT, // size of a vertex in bytes 
+                           0); // Offset from the begining of a single vertex to this attribute
+        this.gl.enableVertexAttribArray(this.texcoordsLocation);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textureid);
+        this.texturelocation =  this.gl.getUniformLocation(this.shaderprog.shaderProgram, "uSampler");
+        this.gl.uniform1i(this.textureLocation, 0);
+        
+        // the parent method does the rest
+        super.drawit(viewMat,projectionMat);
+    } 
+}
+
+
+
+//------------------------------------------------------------------------------//
+//                                  Extrusion                                   //
+//------------------------------------------------------------------------------//
+class extruded extends CGRAobject {
+  constructor(glcontext, vertices2d=[], depth){
+      super(glcontext); // initialize the parent class
+
+      var vertices=[];
+      var colors=[];
+
+      //The exrtrusion curve must have at least 3 vertices
+      //In the front and back face, 1 triangle is added per vertex
+      //This method is similar to triangle fan
+      //This technique is aplied no matter the number of vertices of the curve
+      //For the side face is composed of rectangular faces, each with 2 triangles.
+      //The number of rectangles is equal to the number of vertices
+      var n_triangles = ((vertices2d.length/2)-3)*2+(vertices2d.length/2)*2;
+      this.numvertices = 3*n_triangles;
+  
+
+        //Side Face - Process two vertices of vertices2d per iteration
+        for (var i=0.0; i<(vertices2d.length-3); i=i+2){
+          var v1 = [vertices2d[i],vertices2d[i+1]];
+          var v2 = [vertices2d[i+2],vertices2d[i+3]];
+          //Load 2 triangles
+          //Vertices
+          vertices.push(v1[0], v1[1], -depth/2, //Triangle 1
+                        v2[0], v2[1], -depth/2,   
+                        v1[0], v1[1], depth/2,
+                        v1[0], v1[1], depth/2, //Triangle 1
+                        v2[0], v2[1], depth/2,   
+                        v2[0], v2[1], -depth/2);
+          //Colors
+          colors.push(0.35, 0.0, 0.7,
+                      0.35, 0.0, 0.7,   
+                      0.35, 0.0, 0.7,
+                      0.35, 0.0, 0.7,
+                      0.35, 0.0, 0.7,   
+                      0.35, 0.0, 0.7);
+        }
+
+      this.vertexbuffer=this.gl.createBuffer();
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexbuffer);    
+      // as JS stores everything in 64 bit format and GL expects 32bits...
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(vertices), this.gl.STATIC_DRAW);
+
+      this.colorbuffer = this.gl.createBuffer();
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorbuffer);    
+      // as JS stores everything in 64 bit format and GL expects 32bits...
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(colors), this.gl.STATIC_DRAW);
+      // console.log("extruded object created with "+ vertices2d.length/2 + " vertices");
+  }
+}
+class extrudedT extends extruded{
+  constructor(glcontext, vertices2d, depth){
+        super(glcontext, vertices2d, depth);
+            var texcoords = [];
+            //Load texture coordinates similarly to vertex coordinates
+            var n_triangles = ((vertices2d.length/2)-3)*2+(vertices2d.length/2)*2;
+            this.numvertices = 3*n_triangles;
+              //Side Face - Process two vertices of vertices2d per iteration
+              for (var i=0.0; i<(vertices2d.length-3); i+=2){
+                var v1 = i/vertices2d.length;
+                var v2 = (i+2)/vertices2d.length;
+                //Load 2 triangles
+                //Vertices
+                texcoords.push(v1, 1, //Triangle 1
+                               v2,  1,   
+                               v1, 0,
+                               v1, 0.0, //Triangle 1
+                               v2, 0.0,   
+                               v2, 1);
+              }
+            
+            this.texcoordbuffer = this.gl.createBuffer();
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.texcoordbuffer);    
+            this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(texcoords), this.gl.STATIC_DRAW);
+    }
+        
+    settexture(cgratex){
+            this.textureid = cgratex.textureid;
+    }
+    
+    drawit(viewMat, projectionMat){
+        this.shaderprog.startUsing();
+        this.texcoordsLocation = this.gl.getAttribLocation(this.shaderprog.shaderProgram,
+                                                          "in_texcoords");
+       
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER,this.texcoordbuffer);
+        this.gl.vertexAttribPointer(this.texcoordsLocation, // Attribute location
+                           2, // number of elements per attribute
+                           this.gl.FLOAT,  // Type of elements
+                           false,  // 
+                           0, //2*Float32Array.BYTES_PER_ELEMENT, // size of a vertex in bytes 
+                           0); // Offset from the begining of a single vertex to this attribute
+        this.gl.enableVertexAttribArray(this.texcoordsLocation);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textureid);
+        this.texturelocation =  this.gl.getUniformLocation(this.shaderprog.shaderProgram, "uSampler");
+        this.gl.uniform1i(this.textureLocation, 0);
+        
+        // the parent method does the rest
+        super.drawit(viewMat,projectionMat);
+    } 
+}
+//------------------------------------------------------------------------------//
+//                                  Revolution                                  //
+//------------------------------------------------------------------------------//
+class revolution extends CGRAobject {
+  constructor(glcontext, vertices2d=[], subs){//subs: subdivision - number of rotated segments
+    super(glcontext); // initialize the parent class
+
+    var vertices=[];
+    var colors=[];
+
+    var n_triangles = subs*2*(vertices2d.length);
+    this.numvertices = 3*n_triangles;
+    var increment = 360/subs;
+    for (var i=0.0; i<(360); i+=increment){
+        //Angles of the Vertices of subsection
+        var ang1 = i*Math.PI/180;
+        var ang2 = (i+increment)*Math.PI/180;
+        //For each Vertice, load 2 triangles
+        for (var j=0.0;j<(vertices2d.length-3);j=j+2){
+            var v1 = [vertices2d[j],vertices2d[j+1]];
+            var v2 = [vertices2d[j+2],vertices2d[j+3]];
+            //Vertices
+            vertices.push(Math.cos(ang1)*v1[0], v1[1], Math.sin(ang1)*v1[0], //Triangle 1
+                          Math.cos(ang2)*v1[0], v1[1], Math.sin(ang2)*v1[0],   
+                          Math.cos(ang2)*v2[0], v2[1], Math.sin(ang2)*v2[0],
+                          Math.cos(ang1)*v1[0], v1[1], Math.sin(ang1)*v1[0], //Triangle 1
+                          Math.cos(ang1)*v2[0], v2[1], Math.sin(ang1)*v2[0],   
+                          Math.cos(ang2)*v2[0], v2[1], Math.sin(ang2)*v2[0]);
+            //Colors
+            colors.push(0.2+0.80*Math.abs(Math.cos(ang1*6)),0.9,1.0, //Triangle 1
+                        0.2+0.80*Math.abs(Math.cos(ang1*6)),0.9,1.0,   
+                        0.2+0.80*Math.abs(Math.cos(ang1*6)),0.9,1.0,
+                        0.2+0.80*Math.abs(Math.cos(ang1*6)),0.9,1.0, //Triangle 2
+                        0.2+0.80*Math.abs(Math.cos(ang1*6)),0.9,1.0,   
+                        0.2+0.80*Math.abs(Math.cos(ang1*6)),0.9,1.0);
+        }
+
+    }
+
+    this.vertexbuffer=this.gl.createBuffer();
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexbuffer);    
+    // as JS stores everything in 64 bit format and GL expects 32bits...
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(vertices), this.gl.STATIC_DRAW);
+
+    this.colorbuffer = this.gl.createBuffer();
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorbuffer);    
+    // as JS stores everything in 64 bit format and GL expects 32bits...
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(colors), this.gl.STATIC_DRAW); 
+  }
+}
+
+class revoT extends revolution{
+  constructor(glcontext,vertices2d,subs){
+        super(glcontext,vertices2d,subs);
+            var texcoords = [];
+            //Load texture coordinates similarly to vertex coordinates
+            var n_triangles = subs*2*(vertices2d.length);
+            this.numvertices = 3*n_triangles;
+            var increment = 360/subs;
+            
+            for (var i=0.0; i<(360); i+=increment){
+                //Angles of the Vertices of subsection
+                var ang1 = i/360;
+                var ang2 = (i+increment)/360;
+                //For each Vertice, load 2 triangles
+                for (var j=0.0;j<(vertices2d.length-3);j=j+2){
+                    var v1 = (vertices2d.length-2-j)/(vertices2d.length-2);
+                    var v2 = (vertices2d.length-2-(j+2))/(vertices2d.length-2);
+                    // console.log(v2)
+                    //Vertices
+                    texcoords.push(ang1, v1, //Triangle 1
+                                   ang2, v1,   
+                                   ang2, v2,
+                                   ang1, v1, //Triangle 1
+                                   ang1, v2,   
+                                   ang2, v2);
+                }
+            }
+            this.texcoordbuffer = this.gl.createBuffer();
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.texcoordbuffer);    
+            this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(texcoords), this.gl.STATIC_DRAW);
+    }
+        
+    settexture(cgratex){
+            this.textureid = cgratex.textureid;
+    }
+    
+    drawit(viewMat, projectionMat){
+        this.shaderprog.startUsing();
+        this.texcoordsLocation = this.gl.getAttribLocation(this.shaderprog.shaderProgram,
+                                                          "in_texcoords");
+       
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER,this.texcoordbuffer);
+        this.gl.vertexAttribPointer(this.texcoordsLocation, // Attribute location
+                           2, // number of elements per attribute
+                           this.gl.FLOAT,  // Type of elements
+                           false,  // 
+                           0, //2*Float32Array.BYTES_PER_ELEMENT, // size of a vertex in bytes 
+                           0); // Offset from the begining of a single vertex to this attribute
+        this.gl.enableVertexAttribArray(this.texcoordsLocation);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textureid);
+        this.texturelocation =  this.gl.getUniformLocation(this.shaderprog.shaderProgram, "uSampler");
+        this.gl.uniform1i(this.textureLocation, 0);
+        
+        // the parent method does the rest
+        super.drawit(viewMat,projectionMat);
+    } 
+}
+//-----------------------------------------------------------------------------//
+//                                Compound Shapes                              //
+//-----------------------------------------------------------------------------//
+//-----------------------------------Tree--------------------------------------//
+class tree extends CGRAobject {
+  constructor(glcontext,subs){
+      super(glcontext); // initialize the parent class
+      
+      //Load Cup and Trunk Textures
+      var cupText = new CGRAtexture(glcontext);
+      var trunkText = new CGRAtexture(glcontext);
+      var starText = new CGRAtexture(glcontext)
+      cupText.load("tree_cup.png");
+      trunkText.load("trunk.png");
+      starText.load("gold.jpg");
+
+      //Trunk scale and Position
+      //Cone scale and Position
+      this.trunk=new cyldrT(glcontext,subs);
+      this.cone=new coneT(glcontext,subs);
+      this.trunk.settexture(trunkText);
+      this.cone.settexture(cupText);
+
+      
+      //Default Elements Orientation
+      this.rot= glm.rotate(glm.mat4(1.0),glm.radians(-90),glm.vec3(1.0,0.0,0.0));
+      //Scale trunk Down
+      //move trunk down
+      this.trunk_scale = glm.mat4(1.0);
+      this.trunk_scale[2][2]=2;//z
+      this.trunk.setModelTransformation((this.rot['*'](this.trunk_scale)));
+      this.cup_s=glm.mat4(1.0)//cup scale
+      this.cup_s[0][0]=2.0;this.cup_s[1][1]=2.0;this.cup_s[2][2]=2.0;
+      this.cone.setModelTransformation(this.rot['*'](this.cup_s))
+      //Star
+      var ext_path=[Math.cos(18*Math.PI/180),Math.sin(18*Math.PI/180),
+                    0.4*Math.cos(54*Math.PI/180),0.4*Math.sin(54*Math.PI/180),
+                    Math.cos(90*Math.PI/180),Math.sin(90*Math.PI/180),
+                    0.4*Math.cos(126*Math.PI/180),0.4*Math.sin(126*Math.PI/180),
+                    Math.cos(162*Math.PI/180),Math.sin(162*Math.PI/180),
+                    0.4*Math.cos(198*Math.PI/180),0.4*Math.sin(198*Math.PI/180),
+                    Math.cos(234*Math.PI/180),Math.sin(234*Math.PI/180),
+                    0.4*Math.cos(270*Math.PI/180),0.4*Math.sin(270*Math.PI/180),
+                    Math.cos(306*Math.PI/180),Math.sin(306*Math.PI/180),
+                    0.4*Math.cos(342*Math.PI/180),0.4*Math.sin(342*Math.PI/180),
+                    Math.cos(18*Math.PI/180),Math.sin(18*Math.PI/180)];             
+      this.star=new extrudedT(glcontext,ext_path,0.4);
+      this.star.settexture(starText);
+      //--------------------------Star Scale----------
+      this.star_s=glm.mat4(1.0);
+      this.star_s[0][0]=0.3; this.star_s[1][1]=0.3; this.star_s[2][2]=0.3;
+      //-------------------------Star Position--------
+      this.star_p=glm.translate(glm.mat4(1.0),glm.vec3(0.0,2.9,0.0));
+      this.star.setModelTransformation(this.star_p['*'](this.star_s));
+      //--------------------------Xmas Balls----------
+      this.ball=[];
+      this.TBall=[];
+      this.ball_s=glm.mat4(0.15); this.ball_s[3][3]=1.0;
+      // this.ball_s=glm.mat4(1.0);
+      this.n_balls=4;
+      var h=[2.0,1.0];
+      var r=[0.4,0.8];
+      var clr1=[1.0,0.0,0.0];var clr2=[0.0,0.0,1.0];var clr3=[0.0,1.0,0.0];var clr4=[1.0,1.0,0.0];var clr5=[0.0,1.0,1.0];var clr6=[1.0,0.0,1.0];
+      var clr7=[1.0,0.0,1.0];var clr8=[1.0,0.0,0.0];var clr9=[1.0,1.0,0.0];var clr10=[0.0,1.0,0.0];var clr11=[0.0,0.0,1.0];var clr12=[1.0,0.0,0.0];
+      this.ball1=(new sphere(glcontext,20,20,clr1));
+      this.ball2=(new sphere(glcontext,20,20,clr2));
+      this.ball3=(new sphere(glcontext,20,20,clr3));this.ball4=(new sphere(glcontext,20,20,clr4));
+      this.ball5=(new sphere(glcontext,20,20,clr5));this.ball6=(new sphere(glcontext,20,20,clr6));
+      this.ball7=(new sphere(glcontext,20,20,clr7));this.ball8=(new sphere(glcontext,20,20,clr8));
+      this.ball9=(new sphere(glcontext,20,20,clr9));this.ball10=(new sphere(glcontext,20,20,clr10));
+      this.ball11=(new sphere(glcontext,20,20,clr11));this.ball12=(new sphere(glcontext,20,20,clr12));
+
+      var j=[0, 60, 120, 180, 240, 300, 0, 60, 120, 180, 240, 300];
+
+      this.TBall0=glm.translate(glm.mat4(1.0),glm.vec3(r[0]*Math.cos(j[0]*Math.PI/180),h[0],r[0]*Math.sin(j[0]*Math.PI/180)));
+      this.TBall1=glm.translate(glm.mat4(1.0),glm.vec3(r[0]*Math.cos(j[1]*Math.PI/180),h[0],r[0]*Math.sin(j[1]*Math.PI/180)));
+      this.TBall2=glm.translate(glm.mat4(1.0),glm.vec3(r[0]*Math.cos(j[2]*Math.PI/180),h[0],r[0]*Math.sin(j[2]*Math.PI/180)));
+      this.TBall3=glm.translate(glm.mat4(1.0),glm.vec3(r[0]*Math.cos(j[3]*Math.PI/180),h[0],r[0]*Math.sin(j[3]*Math.PI/180)));
+      this.TBall4=glm.translate(glm.mat4(1.0),glm.vec3(r[0]*Math.cos(j[4]*Math.PI/180),h[0],r[0]*Math.sin(j[4]*Math.PI/180)));
+      this.TBall5=glm.translate(glm.mat4(1.0),glm.vec3(r[0]*Math.cos(j[5]*Math.PI/180),h[0],r[0]*Math.sin(j[5]*Math.PI/180)));
+      this.TBall6=glm.translate(glm.mat4(1.0),glm.vec3(r[1]*Math.cos(j[6]*Math.PI/180),h[1],r[1]*Math.sin(j[6]*Math.PI/180)));
+      this.TBall7=glm.translate(glm.mat4(1.0),glm.vec3(r[1]*Math.cos(j[7]*Math.PI/180),h[1],r[1]*Math.sin(j[7]*Math.PI/180)));
+      this.TBall8=glm.translate(glm.mat4(1.0),glm.vec3(r[1]*Math.cos(j[8]*Math.PI/180),h[1],r[1]*Math.sin(j[8]*Math.PI/180)));
+      this.TBall9=glm.translate(glm.mat4(1.0),glm.vec3(r[1]*Math.cos(j[9]*Math.PI/180),h[1],r[1]*Math.sin(j[9]*Math.PI/180)));
+      this.TBall10=glm.translate(glm.mat4(1.0),glm.vec3(r[1]*Math.cos(j[10]*Math.PI/180),h[1],r[1]*Math.sin(j[10]*Math.PI/180)));
+      this.TBall11=glm.translate(glm.mat4(1.0),glm.vec3(r[1]*Math.cos(j[11]*Math.PI/180),h[1],r[1]*Math.sin(j[11]*Math.PI/180)));
+      //
+      this.ball1.setModelTransformation(this.TBall0);
+      this.ball2.setModelTransformation(this.TBall1);
+      this.ball3.setModelTransformation(this.TBall2);this.ball4.setModelTransformation(this.TBall3);
+      this.ball5.setModelTransformation(this.TBall4);this.ball6.setModelTransformation(this.TBall5);
+      this.ball7.setModelTransformation(this.TBall6);this.ball8.setModelTransformation(this.TBall7);
+      this.ball9.setModelTransformation(this.TBall8);this.ball10.setModelTransformation(this.TBall9);
+      this.ball11.setModelTransformation(this.TBall10);this.ball12.setModelTransformation(this.TBall11);
+
+
+  }
+  setModelTransformation2(parentMat4 = glm.mat4(1.0)){
+      this.trunk_unscale = parentMat4['*'](this.rot);
+      this.cone_unscale = parentMat4['*'](this.rot);
+      this.trunk.setModelTransformation(parentMat4['*'](this.rot['*'](this.trunk_scale)));
+      this.cone.setModelTransformation(parentMat4['*'](this.rot['*'](this.cup_s)));
+      this.star.setModelTransformation(parentMat4['*'](this.star_p['*'](this.star_s)));
+      this.ball1.setModelTransformation(parentMat4['*'](this.TBall0['*'](this.ball_s)));
+      this.ball2.setModelTransformation(parentMat4['*'](this.TBall1['*'](this.ball_s)));
+      this.ball3.setModelTransformation(parentMat4['*'](this.TBall2['*'](this.ball_s)));this.ball4.setModelTransformation(parentMat4['*'](this.TBall3['*'](this.ball_s)));
+      this.ball5.setModelTransformation(parentMat4['*'](this.TBall4['*'](this.ball_s)));this.ball6.setModelTransformation(parentMat4['*'](this.TBall5['*'](this.ball_s)));
+      this.ball7.setModelTransformation(parentMat4['*'](this.TBall6['*'](this.ball_s)));this.ball8.setModelTransformation(parentMat4['*'](this.TBall7['*'](this.ball_s)));
+      this.ball9.setModelTransformation(parentMat4['*'](this.TBall8['*'](this.ball_s)));this.ball10.setModelTransformation(parentMat4['*'](this.TBall9)['*'](this.ball_s));
+      this.ball11.setModelTransformation(parentMat4['*'](this.TBall10['*'](this.ball_s)));this.ball12.setModelTransformation(parentMat4['*'](this.TBall11['*'](this.ball_s)));
+  
+}
+  //drawit function
+  drawit(viewMat4 = glm.mat4(1.0), projectionMat4 = glm.mat4(1.0), parentMat4 = glm.mat4(1.0)){
+      this.viewMat = viewMat4;
+      this.projMat = projectionMat4;
+    
+      var localT = this.modelMat['*'](parentMat4);
+      this.trunk.drawit(this.viewMat,this.projMat,localT);
+      this.cone.drawit(this.viewMat,this.projMat,localT);
+      this.star.drawit(this.viewMat,this.projMat,localT);
+      this.ball1.drawit(this.viewMat,this.projMat,localT);
+      this.ball2.drawit(this.viewMat,this.projMat,localT);
+      this.ball3.drawit(this.viewMat,this.projMat,localT);this.ball4.drawit(this.viewMat,this.projMat,localT);
+      this.ball5.drawit(this.viewMat,this.projMat,localT);this.ball6.drawit(this.viewMat,this.projMat,localT);
+      this.ball7.drawit(this.viewMat,this.projMat,localT);this.ball8.drawit(this.viewMat,this.projMat,localT);
+      this.ball9.drawit(this.viewMat,this.projMat,localT);this.ball10.drawit(this.viewMat,this.projMat,localT);
+      this.ball11.drawit(this.viewMat,this.projMat,localT);this.ball12.drawit(this.viewMat,this.projMat,localT);
+  }
+  
+  //Set Lights For Balls
+  ballsetlights(CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength){
+      //console.log(glm.mat3(this.ball1.vertices));
+      //setlights(Normal_Matrix,CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength)
+      // this.ball1.setlights(glm.mat3(this.ball1.modelMat['*'](glm.inverse(this.ball_s))),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      // this.ball2.setlights(glm.mat3(this.ball2.modelMat['*'](glm.inverse(this.ball_s))),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      // this.ball3.setlights(glm.mat3(1.0),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      // this.ball4.setlights(glm.mat3(this.ball4.modelMat['*'](glm.inverse(this.ball_s))),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      // this.ball5.setlights(glm.mat3(this.ball5.modelMat['*'](glm.inverse(this.ball_s))),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      // this.ball6.setlights(glm.mat3(this.ball6.modelMat['*'](glm.inverse(this.ball_s))),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      // this.ball7.setlights(glm.mat3(this.ball7.modelMat['*'](glm.inverse(this.ball_s))),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      // this.ball8.setlights(glm.mat3(this.ball8.modelMat['*'](glm.inverse(this.ball_s))),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      // this.ball9.setlights(glm.mat3(this.ball9.modelMat['*'](glm.inverse(this.ball_s))),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      // this.ball10.setlights(glm.mat3(this.ball10.modelMat['*'](glm.inverse(this.ball_s))),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      // this.ball11.setlights(glm.mat3(this.ball11.modelMat['*'](glm.inverse(this.ball_s))),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      // this.ball12.setlights(glm.mat3(this.ball12.modelMat['*'](glm.inverse(this.ball_s))),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      this.ball1.setlights(glm.mat3(1.0),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      this.ball2.setlights(glm.mat3(1.0),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      this.ball3.setlights(glm.mat3(1.0),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      this.ball4.setlights(glm.mat3(1.0),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      this.ball5.setlights(glm.mat3(1.0),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      this.ball6.setlights(glm.mat3(1.0),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      this.ball7.setlights(glm.mat3(1.0),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      this.ball8.setlights(glm.mat3(1.0),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      this.ball9.setlights(glm.mat3(1.0),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      this.ball10.setlights(glm.mat3(1.0),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      this.ball11.setlights(glm.mat3(1.0),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      this.ball12.setlights(glm.mat3(1.0),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      
+      //SetLigth for cup and trunk
+      this.trunk.setlights(glm.mat3(this.trunk.modelMat),CamPosition,LightPosition,LightColor,[0.0,0.0,0.0], 2.2, 0.0);
+      this.cone.setlights(glm.mat3(this.cone.modelMat),CamPosition,LightPosition,LightColor,[0.0,0.0,0.0], 2.2, 0.0);
+    }
+  //Set Shade function
+  setShader(shader,shader2,shader3){
+      this.trunk.setShader(shader3);
+      this.cone.setShader(shader3);
+      this.star.setShader(shader);
+      //balls
+      this.ball1.setShader(shader2);
+      this.ball2.setShader(shader2);
+      this.ball3.setShader(shader2);this.ball4.setShader(shader2);
+      this.ball5.setShader(shader2);this.ball6.setShader(shader2);
+      this.ball7.setShader(shader2);this.ball8.setShader(shader2);
+      this.ball9.setShader(shader2);this.ball10.setShader(shader2);
+      this.ball11.setShader(shader2);this.ball12.setShader(shader2);
+  }
+}
+
+
+//-----------------------------------Car---------------------------------------//
+class car extends CGRAobject {
+  constructor(glcontext,texture){
+      super(glcontext); // initialize the parent class 
+      //Default Colors
+      if(texture==null){
+        var texture=new CGRAtexture(glcontext);//red
+        texture.load("car_red.png");
+      }
+      var wheeltext=new CGRAtexture(glcontext);//red
+      wheeltext.load("wheels.png");
+      //------------------Car chassis is made of cubes-----------------------
+      this.center_scale=glm.mat4(1.0);
+      this.center_scale[0][0]=1.0;//x
+      this.center_scale[1][1]=0.5;//y
+      this.center_scale[2][2]=1.6;//z
+      //Generating cubes
+      this.chassis_center = new cubeT(glcontext);
+      this.chassis_center.settexture(texture);
+      //Positioning the cubes
+      this.chassis_center.setModelTransformation(glm.translate(glm.mat4(1.0),(glm.vec3(0.0,0.0,0.0))));
+
+      //Tires are composed of a revoluted square and a cilinder
+      var rev_path=[-0.2, 0.1,
+                    -0.2,-0.1,
+                    -0.15,-0.1,
+                    -0.15,0.1,
+                    -0.2, 0.1];;
+      //Tire Orientation
+      this.tire_rot=glm.rotate(glm.mat4(1.0),glm.radians(-90),glm.vec3(0.0,1.0,0.0));
+      // this.tire_fl= new revolution(glcontext,rev_path,36);
+      // this.tire_fr=new revolution(glcontext,rev_path,36);
+      // this.tire_bl=new revolution(glcontext,rev_path,36);
+      // this.tire_br=new revolution(glcontext,rev_path,36);
+      this.tire_fl= new cyldrT(glcontext,36,0.2);
+      this.tire_fl.settexture(wheeltext);
+      this.tire_fr=new cyldrT(glcontext,36,0.2);
+      this.tire_fr.settexture(wheeltext);
+      this.tire_bl=new cyldrT(glcontext,36,0.2);
+      this.tire_bl.settexture(wheeltext);
+      this.tire_br=new cyldrT(glcontext,36,0.2);
+      this.tire_br.settexture(wheeltext);
+      this.tire_fl.setModelTransformation(glm.translate(glm.mat4(1.0),(glm.vec3(0.5,-0.2,0.6)))['*'](this.tire_rot));
+      this.tire_fr.setModelTransformation(glm.translate(glm.mat4(1.0),(glm.vec3(-0.5,-0.2,0.6)))['*'](this.tire_rot));
+      this.tire_bl.setModelTransformation(glm.translate(glm.mat4(1.0),(glm.vec3(0.5,-0.2,-0.6)))['*'](this.tire_rot));
+      this.tire_br.setModelTransformation(glm.translate(glm.mat4(1.0),(glm.vec3(-0.5,-0.2,-0.6)))['*'](this.tire_rot));
+      // this.tire_fl.setModelTransformation(glm.translate(glm.mat4(1.0),(glm.vec3(0.5,-0.2,0.6))));
+      // this.tire_fr.setModelTransformation(glm.translate(glm.mat4(1.0),(glm.vec3(-0.5,-0.2,0.6))));
+      // this.tire_bl.setModelTransformation(glm.translate(glm.mat4(1.0),(glm.vec3(0.5,-0.2,-0.6))));
+      // this.tire_br.setModelTransformation(glm.translate(glm.mat4(1.0),(glm.vec3(-0.5,-0.2,-0.6))));
+      //Position Tires
+      
+      //Ligths are Spheres
+
+  }
+  setModelTransformation2(n_transf = glm.mat4(1.0)){
+    //   this.chassis_center.setModelTransformation(n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(0.0,-0.1,0.0)))));
+    //   this.chassis_front.setModelTransformation(n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(0.0,0.0,0.6)))));
+    //   this.chassis_back.setModelTransformation(n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(0.0,0.0,-0.6)))));
+    //   this.tire_fl.setModelTransformation(n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(0.5,-0.2,0.6)))['*'](this.tire_rot)));
+    //   this.tire_fr.setModelTransformation(n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(-0.5,-0.2,0.6)))['*'](this.tire_rot)));
+    //   this.tire_bl.setModelTransformation(n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(0.5,-0.2,-0.6)))['*'](this.tire_rot)));
+    //   this.tire_br.setModelTransformation(n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(-0.5,-0.2,-0.6)))['*'](this.tire_rot)));
+      this.chassis_center_noscale = n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(0.0,0.0,0.0)))['*'](glm.inverse(this.center_scale)['*'](this.center_scale)));
+      this.chassis_center.setModelTransformation(n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(0.0,0.0,0.0)))['*'](this.center_scale)));
+      this.tire_fl.setModelTransformation(n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(0.5,-0.2,0.6)))['*'](this.tire_rot)));
+      this.tire_fr.setModelTransformation(n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(-0.5,-0.2,0.6)))['*'](this.tire_rot)));
+      this.tire_bl.setModelTransformation(n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(0.5,-0.2,-0.6)))['*'](this.tire_rot)));
+      this.tire_br.setModelTransformation(n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(-0.5,-0.2,-0.6)))['*'](this.tire_rot)));
+      // this.tire_fl.setModelTransformation(n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(0.5,-0.2,0.6)))));
+      // this.tire_fr.setModelTransformation(n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(-0.5,-0.2,0.6)))));
+      // this.tire_bl.setModelTransformation(n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(0.5,-0.2,-0.6)))));
+      // this.tire_br.setModelTransformation(n_transf['*'](glm.translate(glm.mat4(1.0),(glm.vec3(-0.5,-0.2,-0.6)))));
+    }
+  //drawit function
+  drawit(viewMat4 = glm.mat4(1.0), projectionMat4 = glm.mat4(1.0), parentMat4 = glm.mat4(1.0)){
+      this.viewMat = viewMat4;
+      this.projMat = projectionMat4;
+      var localT = this.modelMat['*'](parentMat4);
+
+      //-------------------------------Draw Elements------------------------------//
+      //Draw Chasis
+    //   this.chassis_center.drawit(this.viewMat,this.projMat,localT['*'](this.center_scale));
+    //   this.chassis_front.drawit(this.viewMat,this.projMat,localT['*'](this.front_scale));
+    //   this.chassis_back.drawit(this.viewMat,this.projMat,localT['*'](this.back_scale));
+      this.chassis_center.drawit(this.viewMat,this.projMat,localT);
+      //Draw Tires
+      this.tire_fl.drawit(this.viewMat,this.projMat,localT);
+      this.tire_fr.drawit(this.viewMat,this.projMat,localT);
+      this.tire_bl.drawit(this.viewMat,this.projMat,localT);
+      this.tire_br.drawit(this.viewMat,this.projMat,localT);
+      //Draw Lights
+
+
+  }
+  //Set Shade function
+  setShader(shader){
+      this.chassis_center.setShader(shader);
+      // this.chassis_front.setShader(shader);
+      // this.chassis_back.setShader(shader);
+      this.tire_fl.setShader(shader);
+      this.tire_fr.setShader(shader);
+      this.tire_bl.setShader(shader);
+      this.tire_br.setShader(shader);
+  }
+  setlights(CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength){
+      
+      this.chassis_center.setlights(glm.mat3(this.chassis_center_noscale),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      this.tire_fl.setlights(glm.mat3(this.tire_fl.modelMat),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      this.tire_fr.setlights(glm.mat3(this.tire_fr.modelMat),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      this.tire_bl.setlights(glm.mat3(this.tire_bl.modelMat),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+      this.tire_br.setlights(glm.mat3(this.tire_br.modelMat),CamPosition,LightPosition,LightColor,Ambient,Shininess,Strength);
+  }
+}
+
+class myapp extends DEECapp{
+  counter=0;
+  key=0;
+  initialize(){
+      // no call to super.initialize() this time because
+      // in this case we don't want to use the default shader.
+      // So we need to explicitly prepare it... and we may indeed prepare 
+      // as many shaderprograms as we want.
+      
+      var fragsrc = document.getElementById("my-fragment-shader").text;
+      var vertsrc = document.getElementById("my-vertex-shader").text;
+      
+      this.shaderprog = new DEECshader(this.gl);
+      this.shaderprog.srcShaders(vertsrc,fragsrc);
+      
+      var fragsrcT = document.getElementById("my-fragment-shaderT").text;
+      var vertsrcT = document.getElementById("my-vertex-shaderT").text;
+      
+      this.shaderprogT = new DEECshader(this.gl);
+      this.shaderprogT.srcShaders(vertsrcT,fragsrcT);
+      
+      var vertsrcC = document.getElementById("my-vertex-shaderC").text;
+      
+      this.shaderprogC = new DEECshader(this.gl);
+      this.shaderprogC.srcShaders(vertsrcC,fragsrc);
+
+      var fragsrcL = document.getElementById("my-fragment-shaderL").text;
+      var vertsrcL = document.getElementById("my-vertex-shaderL").text;
+      
+      this.shaderprogL = new DEECshader(this.gl);
+      this.shaderprogL.srcShaders(vertsrcL,fragsrcL);
+      
+      var fragsrcTL = document.getElementById("my-fragment-shaderTL").text;
+      var vertsrcTL = document.getElementById("my-vertex-shaderTL").text;
+      
+      this.shaderprogTL = new DEECshader(this.gl);
+      this.shaderprogTL.srcShaders(vertsrcTL,fragsrcTL);
+
+      
+
+      // perform other initializations
+      this.gl.enable(this.gl.DEPTH_TEST);
+      this.gl.clearColor(1.0,1.0,1.0,1.0);
+      
+      
+      //Transformation for Moving center objets a few units above ground
+      this.m_up = glm.translate(glm.mat4(1.0),(glm.vec3(0.0,0.7,0.0)));
+      
+      this.cube1 = new cube(this.gl);
+      this.cube1.setShader(this.shaderprog);
+      this.cube1.setModelTransformation(this.m_up)//Move up
+
+      //Textured Cube
+      this.texture = new CGRAtexture(this.gl);
+      this.texture.load("minecraft_dirt.png");
+      this.cubeText = new cubeT(this.gl);
+      this.cubeText.settexture(this.texture);
+      // this.cubeText.setShader(this.shaderprogT);
+      this.cubeText.setModelTransformation(this.m_up)//Move up
+
+      //Screen for Car View
+      this.targetTextureWidth = 1280;
+      this.targetTextureHeight = 720;
+      this.targetTexture = this.gl.createTexture();
+      this.gl.bindTexture(this.gl.TEXTURE_2D, this.targetTexture);
+
+      this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA,
+                this.targetTextureWidth, this.targetTextureHeight, 0,
+                this.gl.RGBA, this.gl.UNSIGNED_BYTE, null);
+
+      // set the filtering so we don't need mips
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+      
+
+      // Create and bind the framebuffer
+      this.fb = this.gl.createFramebuffer();
+      this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.fb);
+
+      this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, 
+                                  this.gl.TEXTURE_2D, this.targetTexture, 0);
+
+      // create a depth renderbuffer
+      this.depthBuffer = this.gl.createRenderbuffer();
+      this.gl.bindRenderbuffer(this.gl.RENDERBUFFER, this.depthBuffer);
+
+      // make a depth buffer and the same size as the targetTexture
+      this.gl.renderbufferStorage(this.gl.RENDERBUFFER, this.gl.DEPTH_COMPONENT16, 
+                                  this.targetTextureWidth, this.targetTextureHeight);
+      this.gl.framebufferRenderbuffer(this.gl.FRAMEBUFFER, this.gl.DEPTH_ATTACHMENT, 
+                                      this.gl.RENDERBUFFER, this.depthBuffer);
+
+
+
+      this.screen = new squareT(this.gl);
+      this.screen.textureid = this.targetTexture;
+      this.screen.setShader(this.shaderprogT);
+      this.screen_mat=glm.translate(glm.mat4(1.0),(glm.vec3(0.0,4.0,-14.0)));
+      this.screen_mat[0][0]=4;this.screen_mat[1][1]=2.5;
+      this.screen.setModelTransformation(this.screen_mat);//Move up
+
+
+      //Textured Cone
+      this.coneText = new CGRAtexture(this.gl);
+      this.coneText.load("coneT.png");
+      this.coneT = new coneT(this.gl,36);
+      this.coneT.settexture(this.coneText);
+      // this.coneT.setShader(this.shaderprogT);
+      // this.coneT.setModelTransformation(this.m_up)//Move up
+
+
+      this.cyldr1 = new cyldr(this.gl,36);
+      this.cyldr1.setShader(this.shaderprogL);
+      this.cyldr1.setModelTransformation(this.m_up)//Move up
+
+      //Textured Cylinder
+      this.cyldrText = new CGRAtexture(this.gl);
+      this.cyldrText.load("cola.png");
+      this.cyldrT = new cyldrT(this.gl,20);
+      this.cyldrT.settexture(this.cyldrText);
+      this.cyldrT.setShader(this.shaderprogTL);
+      this.cyldrT.setModelTransformation(this.m_up)//Move up
+
+      this.sphr1 = new sphere(this.gl,20,20);
+      this.sphr1.setModelTransformation(this.m_up)//Move up
+
+
+      //Textured Sphere
+      this.sphrText = new CGRAtexture(this.gl);
+      // this.sphrText.load("sphere_test.png");
+      // this.sphrText.load("basket.png");
+      this.sphrText.load("earth.jpg");
+    //   this.sphrText.load("sharingan-eye.png");
+      this.sphrT = new sphereT(this.gl,20,20);
+      // this.sphrT.setModelTransformation(glm.translate(glm.mat4(1.0),glm.vec3(0.0,0.0,-3.0)));
+      this.sphrT.settexture(this.sphrText);
+      this.sphrT.setShader(this.shaderprogTL);
+
+
+      //Star path
+      var ext_path=[Math.cos(18*Math.PI/180),Math.sin(18*Math.PI/180),
+                    0.4*Math.cos(54*Math.PI/180),0.4*Math.sin(54*Math.PI/180),
+                    Math.cos(90*Math.PI/180),Math.sin(90*Math.PI/180),
+                    0.4*Math.cos(126*Math.PI/180),0.4*Math.sin(126*Math.PI/180),
+                    Math.cos(162*Math.PI/180),Math.sin(162*Math.PI/180),
+                    0.4*Math.cos(198*Math.PI/180),0.4*Math.sin(198*Math.PI/180),
+                    Math.cos(234*Math.PI/180),Math.sin(234*Math.PI/180),
+                    0.4*Math.cos(270*Math.PI/180),0.4*Math.sin(270*Math.PI/180),
+                    Math.cos(306*Math.PI/180),Math.sin(306*Math.PI/180),
+                    0.4*Math.cos(342*Math.PI/180),0.4*Math.sin(342*Math.PI/180),
+                    Math.cos(18*Math.PI/180),Math.sin(18*Math.PI/180)];             
+
+      this.extr1 = new extruded(this.gl,ext_path,0.4);
+      this.extr1.setShader(this.shaderprog);
+      this.extr1.setModelTransformation(this.m_up)//Move up
+      //Textured Star
+      this.starText = new CGRAtexture(this.gl);
+      this.starText.load("gold.jpg");
+      // this.starText.load("zebra.jpg");
+      this.star = new extrudedT(this.gl,ext_path,0.4);
+      this.star.settexture(this.starText);
+      this.star.setShader(this.shaderprogT);
+
+      //Revolution Shape
+      var rev_path=[];
+      //circle
+      for(var i=0.0;i<=(360);i+=(360/20)){
+        rev_path.push(0.4*Math.cos(i*Math.PI/180)-1.0,0.4*Math.sin(i*Math.PI/180));
+      }
+      console.log("rev_path: ",rev_path)
+      console.log(rev_path)
+      //Donut Shape
+      this.rev1 = new revolution(this.gl,rev_path,40);
+      this.rev1.setShader(this.shaderprog);
+      this.rev1.setModelTransformation(this.m_up)//Move up
+      //Textured Donut
+      this.donutText = new CGRAtexture(this.gl);
+      this.donutText.load("donut.png");
+      // this.starText.load("zebra.jpg");
+      this.donut = new revoT(this.gl,rev_path,20);
+      this.donut.settexture(this.donutText);
+      this.donut.setShader(this.shaderprogT);
+
+      //---------------------------------------------------------------------//
+      //                                   Cars                              //
+      //---------------------------------------------------------------------//
+      //Car 1 
+      this.car1=new car(this.gl);
+      // this.car1.setShader(this.shaderprogTL);
+      //First Car Initial Position
+      this.car1_pos=glm.translate(glm.mat4(1.0),(glm.vec3(0.0,0.0,9.0)));
+      this.car1_rot=glm.rotate(glm.mat4(1.0),glm.radians(90),glm.vec3(0.0,1.0,0.0));
+      this.car1.setModelTransformation2(this.car1_pos['*'](this.car1_rot));
+      //Car 2 
+      this.car2=new car(this.gl);
+      // this.car2.setShader(this.shaderprog,this.shaderprogT);
+      //First Car Initial Position
+      this.car2_pos=glm.translate(glm.mat4(1.0),(glm.vec3(0.0,0.0,10.5)));
+      this.car2_rot=glm.rotate(glm.mat4(1.0),glm.radians(90),glm.vec3(0.0,1.0,0.0));
+      this.car2.setModelTransformation2(this.car2_pos['*'](this.car2_rot));
+      //---------------------------------------------------------------------//
+      //                                  Trees                              //
+      //---------------------------------------------------------------------//
+      //Cycle to generate trees positions
+      this.pos2=glm.translate(glm.mat4(1.0),glm.vec3(5.0,0.0,0.0));
+      this.pos3=glm.translate(glm.mat4(1.0),glm.vec3(-5.0,0.0,0.0));
+
+      this.tree2 = new tree(this.gl,36);
+      this.tree3 = new tree(this.gl,36);
+
+      this.tree2.setModelTransformation2(this.pos2);
+      // this.tree2.setModelTransformation2(glm.mat4(1.0));
+      this.tree3.setModelTransformation2(this.pos3);
+
+      //---------------------------------------------------------------------//
+      //                                  Lamps                              //
+      //---------------------------------------------------------------------//
+
+      //---------------------------------------------------------------------//
+      //---------------------------------------------------------------------//
+      //                           Racing Track                              //
+      //---------------------------------------------------------------------//
+      var track_profile = [-12.0, 0.1,
+                           -12.0,-0.1,
+                           -8.0,-0.1,
+                           -8.0,0.1,
+                           -12.0, 0.1];
+      // this.race_track = new revolution(this.gl,track_profile,36);
+      // this.race_track.setShader(this.shaderprog);
+      this.race_track = new revoT(this.gl,track_profile,60);
+      this.trackText = new CGRAtexture(this.gl);
+      this.trackText.load("asphalt.png");
+      this.race_track.settexture(this.trackText)
+      this.race_track.setShader(this.shaderprogT);
+      //Positioning Race Track
+      var track_pos=glm.translate(glm.mat4(1.0),glm.vec3(0.0,-0.6,0.0));
+      this.race_track.setModelTransformation(track_pos);
+      //--------------------------------------------------------------------//
+      //                                Plane                               //
+      //--------------------------------------------------------------------//
+      this.p_scale = glm.translate(glm.mat4(1.0),glm.vec3(0.0,-3.0,0.0));
+      this.p_scale[0][0]=30.0;//x
+      this.p_scale[1][1]=4.0;//y
+      this.p_scale[2][2]=30.0;//z
+      this.base_plane = new cubeT(this.gl);
+      this.planeText = new CGRAtexture(this.gl);
+      this.planeText.load("plane.png");
+      this.base_plane.setModelTransformation(this.p_scale);
+      this.base_plane.settexture(this.planeText);
+      // this.base_plane.setShader(this.shaderprogT);
+      //--------------------------------------------------------------------//
+      //                                Sky                                 //
+      //--------------------------------------------------------------------//
+      this.day=true;
+      var p_scale = glm.mat4(1.0);
+      p_scale[0][0]=30.5;//x
+      p_scale[1][1]=30.5;//y
+      p_scale[2][2]=30.5;//z
+      this.day_sky = new CGRAtexture(this.gl);
+      this.night_sky = new CGRAtexture(this.gl);
+      this.day_sky.load("skyday.jpg");
+      this.night_sky.load("night-sky.jpg");
+      this.sky = new sphereT(this.gl,20,20);
+      this.sky.settexture(this.day_sky);
+      this.sky.setModelTransformation(p_scale);
+      this.sky.setShader(this.shaderprogT);
+      //---------------------------------------------------------------------------//
+      //                            Sun Light Properties                           //
+      //---------------------------------------------------------------------------//
+      this.SunLightDir = [-1.0,0.5,-1.0];
+      this.SunLigthColor = [0.8,0.8,0.8];
+      //---------------------------------------------------------------------------//
+      //                                Light Poles                                //
+      //---------------------------------------------------------------------------//
+      this.Pole1LightDir = [1.0,2.0,0.0];
+      this.Pole2LigthColor = [1.0,1.0,1.0];
+      //--------------------------------------------------------------------//
+      //Variable to pick what shape is displayed
+      this.choice=4;
+
+      //Keyboard Event Listner
+      window.addEventListener("keypress",(evt) => app.keyprocess(evt),false);
+
+
+
+      //Projection Matrix - Field of View(fov), Aspect Ratio, Near, Far
+      this.projectionM = glm.perspective(glm.radians(45),1280/720,0.001,1000);
+
+      //---------------------------------------------------------------------------//
+      //                          Walking View Camera                              //
+      //---------------------------------------------------------------------------//
+      // this.camPos=glm.vec3(0.0,5.0,0.01);
+      this.camPos=glm.vec3(10.0,0.8,-5.0);
+      //The Camera Looks at origin by default 
+      //Normalize the vector
+      var norm=Math.sqrt(Math.pow(this.camPos.x,2)+Math.pow(this.camPos.y,2)+Math.pow(this.camPos.z,2))
+      this.camLookAt=glm.vec3(this.camPos.x-this.camPos.x/norm,this.camPos.y-this.camPos.y/norm,this.camPos.z-this.camPos.z/norm);
+      this.camUp=glm.vec3(0.0,1.0,0);
+      this.viewM = glm.lookAt(this.camPos,this.camLookAt,this.camUp);
+      //---------------------------------------------------------------------------//
+      //                            Car View Camera                                //
+      //---------------------------------------------------------------------------//
+      this.camPosCar = (this.car1_pos);
+      this.camLookAtCar=glm.vec3(0.0,0.0,0.0);
+      //------------------------Vaiable for Toogling-------------------------------//
+      this.toogle=0;
+
+      console.log("look at: ",this.camLookAt)
+      console.log("cam pos: ",this.camPos)
+
+  }
+  
+    //---------------------Move Camera Arround-------------------------------//
+    //                                                                       //
+    //-----------------------------------------------------------------------//
+    //if (this.key == 119) w-forward
+    //if (this.key == 115) s-backward   
+    //if (this.key == 97) a-left
+    //if (this.key == 100) d-rigth
+
+    //   //Options: 1 - ; 2 - ; 3 - ; 4 - ;  
+  keyprocess(evt){
+       console.log(evt.keyCode);
+       switch (evt.keyCode) {
+            //Display Cube
+            case 49:
+            this.choice=1;
+            break;
+            //Display Cone
+            case 50:
+            this.choice=2;
+            break;
+            //Display Cilynder
+            case 51:
+            this.choice=3;
+            break;
+            //Display Cilynder
+            case 52:
+            this.choice=4;
+            break;
+            //Display Extrusion
+            case 53:
+            this.choice=5;
+            break;
+            //Display Revolution
+            case 54:
+            this.choice=6;
+            break;
+            console.log(this.camPos);
+            break;
+            case 118: //v - switch view from car driver to walk and viceversa
+                this.toogle++;
+                if(this.toogle>=3){
+                    this.toogle=0;
+                }
+                if(this.toogle==0){
+                  this.viewM = glm.lookAt(this.camPos,this.camLookAt,this.camUp);
+                }
+                if(this.toogle==1){
+                  this.viewM = glm.lookAt(glm.vec3(0.0,1.0,9.0),glm.vec3(0.0,0.0,0.0),this.camUp);
+                }
+                if(this.toogle==2){
+                  this.viewM = glm.lookAt(glm.vec3(0.0,1.0,10.5),glm.vec3(0.0,0.0,0.0),this.camUp);
+                }
+            break;
+            case 119: // w-forward
+                if(this.toogle==0){
+                    //Direction Vector Normalized
+                    // var dir = glm.vec3(this.camPos.x-this.camLookAt.x,this.camPos.y-this.camLookAt.y,this.camPos.z-this.camLookAt.z);
+                    // var norm = Math.sqrt(Math.pow(dir.x,2)+Math.pow(dir.y,2)+Math.pow(dir.z,2));
+                    // dir=glm.vec3(dir.x/norm,dir.y/norm,dir.z/norm);
+                    // // console.log("dir front: ",dir)
+                    // //Increment direction in 0.1
+                    // this.camPos=glm.vec3(this.camPos.x-dir.x*0.1,this.camPos.y-dir.y*0.1,this.camPos.z-dir.z*0.1);
+                    // this.camLookAt=glm.vec3(this.camPos.x-dir.x,this.camPos.y-dir.y,this.camPos.z-dir.z);
+                    // //Update View Matrix
+                    // this.viewM = glm.lookAt(this.camPos,this.camLookAt,this.camUp);
+                    var dir = glm.vec3(this.camPos.x-this.camLookAt.x,this.camPos.y-this.camLookAt.y,this.camPos.z-this.camLookAt.z);
+                    var norm = Math.sqrt(Math.pow(dir.x,2)+Math.pow(dir.y,2)+Math.pow(dir.z,2));
+                    dir=glm.vec3(dir.x/norm,dir.y/norm,dir.z/norm);
+                    // console.log("dir front: ",dir)
+                    //Increment direction in 0.1
+                    this.camPos=glm.vec3(this.camPos.x-dir.x*0.1,this.camPos.y,this.camPos.z-dir.z*0.1);
+                    this.camLookAt=glm.vec3(this.camPos.x-dir.x,this.camPos.y,this.camPos.z-dir.z);
+                    //Update View Matrix
+                    this.viewM = glm.lookAt(this.camPos,this.camLookAt,this.camUp);
+
+                    // console.log("look at: ",this.camLookAt)
+                    // console.log("cam pos: ",this.camPos)
+                }
+                break;
+            case 115: // s-backward
+                if(this.toogle==0){
+                    //Direction Vector Normalized
+                    var dir = glm.vec3(this.camPos.x-this.camLookAt.x,this.camPos.y-this.camLookAt.y,this.camPos.z-this.camLookAt.z);
+                    var norm = Math.sqrt(Math.pow(dir.x,2)+Math.pow(dir.y,2)+Math.pow(dir.z,2));
+                    dir=glm.vec3(dir.x/norm,dir.y/norm,dir.z/norm);
+                    //Increment direction in 0.1
+                    this.camPos=glm.vec3(this.camPos.x+dir.x*0.1,this.camPos.y+dir.y*0.1,this.camPos.z+dir.z*0.1);
+                    this.camLookAt=glm.vec3(this.camPos.x-dir.x,this.camPos.y-dir.y,this.camPos.z-dir.z);
+                    //Update View Matrix
+                    this.viewM = glm.lookAt(this.camPos,this.camLookAt,this.camUp);
+                }
+                break;
+            case 97: //a-left
+                if(this.toogle==0){
+                    //Direction Vector Normalized
+                    var dir = glm.vec3(this.camPos.x-this.camLookAt.x,this.camPos.y-this.camLookAt.y,this.camPos.z-this.camLookAt.z);
+                    //Left/Rigth vector is perpendicular to the Forward Vector and y is constant:
+                    //dir.left=0, leftx=(-dir.y/dir.x).leftz
+                    var leftz = 1.0;
+                    var leftx = (-dir.z/dir.x)*leftz;
+                    //Normalize left vector
+                    var norm_l = Math.sqrt(Math.pow(leftx,2)+Math.pow(leftz,2));
+                    //Increment direction in 0.1
+                    leftx=leftx*0.1/norm_l; leftz=leftz*0.1/norm_l;
+                    //Subtract direction to position and at vectors
+                    this.camPos=glm.vec3(this.camPos.x+leftx,this.camPos.y,this.camPos.z+leftz);
+                    this.camLookAt=glm.vec3(this.camPos.x-dir.x,this.camPos.y-dir.y,this.camPos.z-dir.z);
+                    //Update View Matrix
+                    this.viewM = glm.lookAt(this.camPos,this.camLookAt,this.camUp);
+                    console.log("look at: ",this.camLookAt)
+                    console.log("cam pos: ",this.camPos)
+                }
+                break;
+            case 100: //d-rigth
+                if(this.toogle==0){
+                    //Direction Vector Normalized
+                    var dir = glm.vec3(this.camLookAt.x-this.camPos.x,0.0,this.camLookAt.z-this.camPos.z);
+                    //Left/Rigth vector is perpendicular to the Forward Vector and y is constant:
+                    //dir.left=0, leftx=(-dir.y/dir.x).leftz
+                    var rigthz = 1.0;
+                    var rigthx = (-dir.z/dir.x)*rigthz;
+                    //Normalize left vector
+                    var norm_r = Math.sqrt(Math.pow(rigthx,2)+Math.pow(rigthz,2));
+                    //Increment direction in 0.1
+                    rigthx=rigthx*0.1/norm_r; rigthz=rigthz*0.1/norm_r;
+                    //Subtract direction to position and at vectors
+                    this.camPos=glm.vec3(this.camPos.x-rigthx,this.camPos.y,this.camPos.z-rigthz);
+                    this.camLookAt=glm.vec3(this.camLookAt.x-rigthx,this.camLookAt.y,this.camLookAt.z-rigthz);
+                    //Update View Matrix
+                    console.log("look at: ",this.camLookAt)
+                    console.log("cam pos: ",this.camPos)
+                    this.viewM = glm.lookAt(this.camPos,this.camLookAt,this.camUp);
+                }
+                break;
+            case 104: //look left
+                //Direction Vector
+                var dir = glm.vec3(this.camLookAt.x-this.camPos.x,0.0,this.camLookAt.z-this.camPos.z);
+                //Left/Rigth vector is perpendicular to the Forward Vector and y is constant:
+                //dir.left=0, leftx=(-dir.y/dir.x).leftz
+                var leftz = -dir.x;
+                var leftx = dir.z;
+                //Increment direction in 0.1
+                leftx=leftx*0.05; leftz=leftz*0.05;
+                //Subtract direction to position and at vectors
+                this.camLookAt=glm.vec3(this.camLookAt.x+leftx,this.camLookAt.y,this.camLookAt.z+leftz);
+                //new dir
+                dir = glm.vec3(this.camLookAt.x-this.camPos.x,this.camLookAt.y-this.camPos.y,this.camLookAt.z-this.camPos.z);
+                //normalize dir
+                var norm = Math.sqrt(Math.pow(dir.x,2)+Math.pow(dir.y,2)+Math.pow(dir.z,2));
+                dir=glm.vec3(dir.x/norm,dir.y/norm,dir.z/norm);
+                //Updade camera LookAt
+                this.camLookAt=glm.vec3(this.camPos.x+dir.x,this.camPos.y+dir.y,this.camPos.z+dir.z);
+                console.log("cam xyz: ",this.camLookAt.x," ",this.camLookAt.y," ",this.camLookAt.z);
+                //Update View Matrix
+                this.viewM = glm.lookAt(this.camPos,this.camLookAt,this.camUp);
+                break;
+            case 107: //look rigth
+                //Direction Vector Normalized
+                var dir = glm.vec3(this.camLookAt.x-this.camPos.x,0.0,this.camLookAt.z-this.camPos.z);
+                //Left/Rigth vector is perpendicular to the Forward Vector and y is constant:
+                //dir.left=0, leftx=(-dir.y/dir.x).leftz
+                var leftz = dir.x;
+                var leftx = -dir.z;
+                //Increment direction in 0.05
+                leftx=leftx*0.05; leftz=leftz*0.05;
+                //Subtract direction to position and at vectors
+                this.camLookAt=glm.vec3(this.camLookAt.x+leftx,this.camLookAt.y,this.camLookAt.z+leftz);
+                //new dir
+                dir = glm.vec3(this.camLookAt.x-this.camPos.x,this.camLookAt.y-this.camPos.y,this.camLookAt.z-this.camPos.z);
+                //normalize dir
+                var norm = Math.sqrt(Math.pow(dir.x,2)+Math.pow(dir.y,2)+Math.pow(dir.z,2));
+                dir=glm.vec3(dir.x/norm,dir.y/norm,dir.z/norm);
+                //Updade camera LookAt
+                this.camLookAt=glm.vec3(this.camPos.x+dir.x,this.camPos.y+dir.y,this.camPos.z+dir.z);
+                console.log("cam xyz: ",this.camLookAt.x," ",this.camLookAt.y," ",this.camLookAt.z);
+                //Update View Matrix
+                this.viewM = glm.lookAt(this.camPos,this.camLookAt,this.camUp);
+                break;
+            case 110://select/deselect night mode
+                this.day=!(this.day);
+                break;
+      }
+    }
+
+
+
+  draw_scene(viewM){
+        //---------------------------------------------------------------//
+        //                              Sky                              //
+        //---------------------------------------------------------------//
+        if(this.day){ // Day Mode
+            this.sky.settexture(this.day_sky);
+            this.sky.drawit(viewM,this.projectionM);
+            //----------------------------------Set Lights----------------------------------
+            this.tree2.setShader(this.shaderprogT,this.shaderprogL,this.shaderprogTL);
+            this.tree3.setShader(this.shaderprogT,this.shaderprogL,this.shaderprogTL);
+            this.cubeText.setShader(this.shaderprogTL);
+            this.coneT.setShader(this.shaderprogTL);
+            this.cyldrT.setShader(this.shaderprogTL);
+            this.sphrT.setShader(this.shaderprogTL); 
+            this.base_plane.setShader(this.shaderprogTL);   
+            this.car1.setShader(this.shaderprogTL);
+            this.car2.setShader(this.shaderprogTL);
+          }
+        if(!(this.day)){ // Night Mode
+            this.sky.settexture(this.night_sky);
+            this.sky.drawit(viewM,this.projectionM);
+            //----------------------------------Set Lights----------------------------------
+            this.cubeText.setShader(this.shaderprogT);
+            this.coneT.setShader(this.shaderprogT);
+            this.sphrT.setShader(this.shaderprogT);
+            this.cyldrT.setShader(this.shaderprogT);
+            this.tree2.setShader(this.shaderprogT,this.shaderprog,this.shaderprogT);
+            this.tree3.setShader(this.shaderprogT,this.shaderprog,this.shaderprogT);
+            this.base_plane.setShader(this.shaderprogT); 
+            this.car1.setShader(this.shaderprogT);
+            this.car2.setShader(this.shaderprogT);
+        }
+      //----------------------------------------------------------------//
+      //                        Draw Objects                            //
+      //----------------------------------------------------------------//
+        switch(this.choice){
+          case 1:
+            // this.cube1.drawit(viewM,this.projectionM,rotation3);
+            this.cubeText.setlights(glm.mat3(this.cubeText.modelMat),this.camPos,this.SunLightDir,this.SunLigthColor,[0.0,0.0,0.0],15.0,1);
+            this.cubeText.drawit(viewM,this.projectionM);
+          break;
+          case 2:
+            // this.cone1.drawit(viewM,this.projectionM,rotation3);
+            this.coneT.setlights(glm.mat3(this.coneT.modelMat),this.camPos,this.SunLightDir,this.SunLigthColor,[1.0,1.0,1.0],15.0,1);
+            this.coneT.drawit(viewM,this.projectionM);
+          break;
+          case 3:
+            this.cyldrT.setlights(glm.mat3(this.cyldrT.modelMat),this.camPos,this.SunLightDir,this.SunLigthColor,[0.0,0.0,0.0],15.0,0.0);
+            this.cyldrT.drawit(viewM,this.projectionM);
+          break;
+          case 4:
+            this.sphrT.setlights(glm.mat3(this.sphrT.modelMat),this.camPos,this.SunLightDir,this.SunLigthColor,[1.0,1.0,1.0],15.0,1);
+            this.sphrT.drawit(viewM,this.projectionM);
+          break;
+          case 5:
+            this.star.drawit(viewM,this.projectionM);
+          break;
+          case 6:
+            this.donut.drawit(viewM,this.projectionM);
+          break;
+        }
+
+        //----------------------------------------------------------------//
+        //                              Cars                              //
+        //----------------------------------------------------------------//
+        //Car1
+        this.car1.setlights(this.camPos,this.SunLightDir,this.SunLigthColor,[0.0,0.0,0.0],15.0,0.5);
+        this.car1.drawit(viewM,this.projectionM);
+        
+        this.car2.setlights(this.camPos,this.SunLightDir,this.SunLigthColor,[0.0,0.0,0.0],15.0,0.5);
+        this.car2.drawit(viewM,this.projectionM);
+        //----------------------------------------------------------------//
+        //                          Scenario                              //
+        //----------------------------------------------------------------//
+        //Draw Screen
+        this.screen.drawit(viewM,this.projectionM);
+        //Draw Plane
+        this.base_plane.setlights(glm.mat3(1.0),this.camPos,this.SunLightDir,this.SunLigthColor,[0.0,0.0,0.0],0.0,0)
+        this.base_plane.drawit(viewM,this.projectionM);
+        //Draw trees
+        this.tree2.ballsetlights(this.camPos,this.SunLightDir,this.SunLigthColor,[1.0,1.0,1.0],10.0,1);
+        this.tree2.drawit(viewM,this.projectionM);
+        this.tree3.ballsetlights(this.camPos,this.SunLightDir,this.SunLigthColor,[1.0,1.0,1.0],10.0,1);
+        this.tree3.drawit(viewM,this.projectionM);
+
+        //Draw Racing track
+        this.race_track.drawit(viewM,this.projectionM);
+
+        //--------------------------END of Draw Elements-------- ----------//
+        //----------------------------------------------------------------//
+  }
+
+  render(){
+      this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+
+      this.counter++;
+
+      //  the model tranformation for the first
+      this.rotation = glm.toMat4(glm.angleAxis(glm.radians(this.counter*0.5),glm.vec3(0.0,1.0,0.0)));
+      this.rotation2 = glm.toMat4(glm.angleAxis(glm.radians(this.counter*1),glm.vec3(0.0,1.0,0.0)));
+      this.rotation3 = glm.toMat4(glm.angleAxis(glm.radians(this.counter*4),glm.vec3(0.0,1.0,0.0)));
+      this.rotation4 = glm.toMat4(glm.angleAxis(glm.radians(this.counter*4),glm.vec3(1.0,0.0,0.0)));
+      this.rotation5 = glm.toMat4(glm.angleAxis(glm.radians(this.counter*4),glm.vec3(0.0,0.0,1.0)));
+
+  
+      //----------------------------Apply Transforms-----------------------------//
+      this.camCarPos=glm.translate(glm.mat4(1.0),(glm.vec3(0.0,1.0,9.0)));
+      this.camCarViewPos=glm.translate(glm.mat4(1.0),(glm.vec3(1.0,1.0,8.5)));
+      this.camCarT=this.rotation['*']((this.camCarPos)['*'](this.car1_rot));
+      this.camCarView=this.rotation['*']((this.camCarViewPos)['*'](this.car1_rot));
+
+      this.camCarPos2=glm.translate(glm.mat4(1.0),(glm.vec3(0.0,1.0,10.5)));
+      this.camCarViewPos2=glm.translate(glm.mat4(1.0),(glm.vec3(1.0,1.0,9.8)));
+      this.camCarT2=this.rotation2['*']((this.camCarPos2)['*'](this.car2_rot));
+      this.camCarView2=this.rotation2['*']((this.camCarViewPos2)['*'](this.car2_rot));
+
+      this.cubeText.setModelTransformation(this.rotation4);
+      this.coneT.setModelTransformation(this.m_up['*'](this.rotation3));
+      this.cyldrT.setModelTransformation(this.m_up['*'](this.rotation5));
+      this.sphrT.setModelTransformation(this.m_up['*'](this.rotation3));
+      this.star.setModelTransformation(this.m_up['*'](this.rotation3));
+      this.donut.setModelTransformation(this.m_up['*'](this.rotation4));
+      //Car 1
+      this.car1.setModelTransformation2(this.rotation['*'](this.car1_pos['*'](this.car1_rot)));
+      //Car2
+      this.car2.setModelTransformation2(this.rotation2['*'](this.car2_pos['*'](this.car2_rot)));
+
+      //----------------------------------------------------------------//
+      //                        Update Car Cam                          //
+      //----------------------------------------------------------------//
+      if(this.toogle==1){
+          this.viewM = glm.lookAt(glm.vec3(this.camCarT[3][0],this.camCarT[3][1],this.camCarT[3][2]),glm.vec3(this.camCarView[3][0],this.camCarView[3][1],this.camCarView[3][2]),this.camUp);
+        }
+      if(this.toogle==2){
+          this.viewM = glm.lookAt(glm.vec3(this.camCarT2[3][0],this.camCarT2[3][1],this.camCarT2[3][2]),glm.vec3(this.camCarView2[3][0],this.camCarView2[3][1],this.camCarView2[3][2]),this.camUp);
+      }
+      this.ViewMirror = glm.lookAt(glm.vec3(this.camCarT2[3][0],this.camCarT2[3][1],this.camCarT2[3][2]),glm.vec3(this.camCarView2[3][0],this.camCarView2[3][1],this.camCarView2[3][2]),this.camUp);
+      //----------------------------Print View From Car------------------//
+      // set view for the mirror
+      this.gl.enable(this.gl.DEPTH_TEST);
+
+      // render to our targetTexture by binding the framebuffer
+      this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.fb);
+      this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, 
+                                this.gl.TEXTURE_2D, this.targetTexture, 0);
+
+      // Tell WebGL how to convert from clip space to pixels
+      this.gl.viewport(0, 0, this.targetTextureWidth, this.targetTextureHeight);
+
+
+      this.gl.clearColor(0, 0, 0, 1);   // clear to white
+      this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+
+      this.draw_scene(this.ViewMirror);
+
+      //------------------------Draw Scene for the Viewer--------------------//
+      this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+      this.gl.enable(this.gl.DEPTH_TEST);
+
+      this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
+
+      this.gl.clearColor(0, 0, 0, 1);   // clear to white
+      this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+
+      this.draw_scene(this.viewM);
+  }
+  
+}
+
+
+var app = new myapp('myCanvas');
+
+app.run();
+
+</script>
